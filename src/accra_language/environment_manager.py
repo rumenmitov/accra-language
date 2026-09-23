@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
-from .error import ErrorToken
+from .error import AccraLanguageError
 from .manifest import Manifest, DependencySpec
 
 
@@ -15,9 +15,9 @@ class EnvironmentManager(ABC):
         self.spec = spec
 
     @abstractmethod
-    def install(self) -> ErrorToken | None: ...
+    def install(self) -> AccraLanguageError | None: ...
 
     @abstractmethod
     def install_dependencies(
         self, dependency: set[DependencySpec]
-    ) -> ErrorToken | None: ...
+    ) -> AccraLanguageError | None: ...

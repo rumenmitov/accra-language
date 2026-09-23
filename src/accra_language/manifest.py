@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
-from .error import ErrorToken
 
 
 class DependencySpec(BaseModel):
