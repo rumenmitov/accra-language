@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
+from pathlib import Path
 from .environment_manager import EnvironmentManager
 from .error import ErrorToken
 
@@ -16,7 +17,7 @@ class Language(ABC):
         self.spec = spec
 
     @abstractmethod
-    def detect_language(self) -> bool: ...
+    def detect_language(self, root: Path) -> bool: ...
 
     @abstractmethod
     def install(self) -> ErrorToken | None: ...
