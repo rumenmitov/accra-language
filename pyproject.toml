@@ -2,7 +2,7 @@
 name = "accra-language"
 version = "0.1.0"
 description = "Add your description here"
-readme = "README"
+readme = "README.txt"
 authors = [
     { name = "Rumen", email = "rumenmitov@disroot.org" }
 ]
