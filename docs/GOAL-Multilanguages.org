@@ -1,0 +1,91 @@
+#+title: Goal: Multilanguages
+
+This is the PRD for this quarter's goal on laying the groundwork for multi-language support in ACCRa.
+
+*Project Statement*: After the completion of this document's  requirements, ACCRa should benefit from an internal framework that would be able to setup environments for compiled, interpreted and managed languages. A configuration mechanism would describe how to setup the environments on a per language basis. Note that different major versions of the language would need their own configuration. The framework should be able to able to use multiple configurations to build projects written in more than one programming languages.
+
+* Objectives
+- Establish framework for supporting projects written in compiled, interpreted, and VM-based languages.
+- Establish framework for supporting package managers and build systems of programming languages (this framework should be complimentary but orthogonal to the one mentioned above).
+- The framework should provide capabilities of setting up the environment in which to run projects for the given programming languages.
+- The framework should be capable of building environments for projects that use more than one programming language.
+- Demonstrate the framework by showing it works for Python projects.
+
+* Current State
+Today ACCRa can only set up, run, and analyze projects written in Python. Multi-language support does not exist; the language is an implicit, hardcoded assumption threaded through every subsystem from repository scanning to dimension prediction. The relevant building blocks and their current limitations are summarized below.
+
+** Environment Setup
+Environment construction lives in =GitHubProject.prepare_environment= (accra_code/project/github_project/github_project.py:965) and the TemporaryPackageManager family under =accra_code/temporary_package_manager/=. The only axis of language variation is Python 2 vs Python 3: =TemporaryPackageManager= (temporary_package_manager.py:17) dispatches to =Python2TemporaryPackageManager= or =Python3TemporaryPackageManager=, both subclasses of the single =BaseTemporaryPackageManager= (3217 lines). There is no abstraction for "a language" or "a runtime backend."
+
+- Dependency discovery scans only Python sources for imports (base_temporary_package_manager.py:1858), reads only Python manifests (requirements*.txt, pyproject.toml, setup.cfg, setup.py; github_project.py:261), and resolves Python import-name ↔ pip-name mappings (cv2→opencv-python, sklearn→scikit-learn, etc.).
+- Environments are built exclusively with =pyenv= + =python -m venv= + =pip install= (python3_temporary_package_manager.py:38, base_temporary_package_manager.py:1322). No other package manager or build system (npm, cargo, maven, go modules, …) is modeled.
+- Readiness is reported via environment_readiness (=build_readiness_report=, base_temporary_package_manager.py:2093) with pip-flavored buckets: =installed_packages=, =skipped_local_packages=, =satisfied_packages=, =unresolved_packages=, =optional_or_system_dependencies= (hardcoded fallback ={"psi4","lammps"}=), =optional_packages_unavailable=, and =blocking_unresolved_packages=.
+- Version selection uses a hardcoded Python preference list and vermin/Python-2-syntax heuristics (github_project.py:218, :463, :1032). Prolog rules (environment_rules.pl) encode Python/pip concepts only (stdlib skip-list, optional system packages, legacy scientific pins).
+
+
+** Project Model
+=GitHubProject= (github_project.py:86) models a project as a single Python runtime (=version2use=, =supported_python_versions=) plus pip dependencies. It always constructs a =TemporaryPackageManager= and always drives pip/venv. There is no language field, no pluggable runtime backend, and no non-Python branch anywhere in the class. The repository's GitHub-declared language is captured into =project_details["language"]= (github_project.py:592) and surfaced as a fact by =AccraService= (accra_service.py:63), but it never reaches the environment or analysis layers.
+
+** LangGraph Pipeline
+The following run steps in the LangGraph pipeline rely on Python-specific assumptions:
+- =RunStep.DEPENDENCIES_INSTALLATION=;
+- =RunStep.REASONING= (only the fact-collection);
+- =RunStep.MEMORY=;
+- =RunStep.LOAD=;    
+- =RunStep.NETWORK=;
+- =RunStep.PARALLELISM=.
+
+
+** Event System
+The events collection in the database is Python-centric. =State= (models.py:263) hardcodes =python_version= and =compute_state_key=, =installed= comprises pip-package names; there is no language field. Context payloads (CtxPkgInstall, CtxInstallAttempt, _CtxAnalyseBase, CtxDockerfile) embed Python-manifest and pip-install concepts, and the predictor/candidates learning keys on =python_version= and =os= only.
+
+* Scope
+** In-Scope
+- Design and implement the general framework that should work for all compiled, interpreted and VM-based languages.
+- Refactor the ACCRa pipeline to use the framework for running Python projects.
+- Rework the event system to be more general with respect to the programming language used and the dependencies.
+  
+** Out-of-Scope
+- Be able to build / setup environments for projects written in programming languages other than Python.
+  
+* User Stories
+
+** Framework and Configuration
+- ACCRa should have a language-agnostic framework that defines a uniform contract for setting up and running projects, so that adding a new language is a matter of supplying a configuration rather than forking the pipeline.
+- Each language (and each major version of it) to be described by its own configuration. The configuration should cover interpreter/compiler/VM acquisition, dependency manifest formats, package manager/build commands, and analysis hooks — so that ACCRa can build and run any project or dependency written in a language it has a configuration for.
+- Language execution model differences should be encapsulated behind configuration.
+
+  
+** Environment Setup
+- The framework should be responsible for constructing the runtime environment each language needs (interpreter/compiler, toolchain, package installation, build steps), so that no pipeline node hardcodes Python/pyenv/pip assumptions.
+- The environment-setup step should produce a generalized readiness report (installed / satisfied / unresolved / blocking buckets) that is not tied to pip distribution states, so that any language's dependency outcomes are represented uniformly.
+
+** Package Managers and Build Systems
+- The framework should model package managers and build systems orthogonally to the language configuration. Dependency discovery and installation should be dispatched by configuration rather than hardcoded.
+- The framework should read each language's native manifest formats via config-declared extractors, so that dependency collection is not Python-file-specific.
+
+** Analyzers
+- Each language configuration should declare how its projects are analyzed for memory, load, network, and parallelism, so that the four dimension analyzers are driven by configuration instead of hardcoded Python profilers (memray/scalene) and Python import-name matching.
+
+** Events
+- The event =State= and context payloads should be language-typed (language discriminator, language-specific manifest/dependency namespaces) instead of Python-only, so that occurrences from different languages do not collide in =compute_state_key= and the predictor/candidates learning keys on language and runtime version.
+
+** Refactor and Demonstration
+- The framework should be shown to work for a Python project, before moving on and adding more languages (out-of-scope for this quarter).
+
+* Requirements
+- Design and implement a framework for building projects written in compiled, interpreted, or VM-based languages.
+- Design a complementary, but orthogonal framework for package managers and build systems (i.e. environment managers).
+- The framework should be configurable to accommodate intricacies of each language. If the framework has access to a configuration for a programming language, then ACCRa should be able to build and run any project / dependency written in said language.
+- The framework should be responsible for setting up the environment needed by each language in the project.
+- Aside from describing how to install and setup an environment for a particular language, the configuration should describe how projects of the language can be analyzed (memory, load, network, and parallelism).
+- The framework should be able to compose multiple configurations and thus be able to construct environments for projects written with multiple programming languages.
+- The framework should properly record each step inside the Events collection in the database.
+- The framework should encompass the following run steps from the LangGraph:
+  - =RunStep.DEPENDENCIES_INSTALLATION=;
+  - =RunStep.REASONING= (only the fact-collection);
+  - =RunStep.MEMORY=;
+  - =RunStep.LOAD=;    
+  - =RunStep.NETWORK=;
+  - =RunStep.PARALLELISM=.
+

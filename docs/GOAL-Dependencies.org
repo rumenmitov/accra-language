@@ -1,0 +1,87 @@
+#+title: Goal: Dependencies
+
+This is the PRD for this quarter's goal on improving ACCRa's handling of third-party dependencies. This document does not make a distinction between dependencies and third-party dependencies. Dependencies refers to any collection of code / data that needs to be downloaded (and potentially built) in some manner in order for the project currently being investigated to run.
+
+*Product Statement*: After the completion of this document's requirements, ACCRa should be able to install dependencies through the container's package manager (i.e. ACCRa would no longer need to rely on a fixed list of packages available to each container). This would allow for greater flexibility of container images, while keeping their disk usage low.
+
+In addition, ACCRa should be able to install packages from source (for now only other Python projects will be supported). Circular dependencies should be resolved in a deterministic and efficient manner.
+
+* Objectives
+- Handle variable dependency list in docker container.
+- Handle dependencies that need to be built from source.
+- Handle circular dependencies.
+
+* Current State
+** Installer Core
+Dependency resolution and installation live in =accra_code/temporary_package_manager/base_temporary_package_manager.py=.
+
+** Build / Install Tooling
+Virtual environment is setup via =venv=, with =pyenv= used for version selection. Dependencies are only installed via =pip= or =uv=; there is no support for packages installed via the system package manager, or running daemons.
+
+** Circular Dependencies
+Currently, circular dependencies are only being detected; there is no deterministic resolution. Install ordering is computed by =_plan_install_batches= ->  =_compute_install_batches= (base_temporary_package_manager.py:1196-1225), which builds a DAG from static =PREINSTALL_REQUIREMENTS= and dynamic =requires_pip_install= facts (=_prolog_ordering_edges= -> =PrologReasoner.get_installation_plan=, (prolog_reasoner.py:438). On a cycle it logs a /warning/ and dumps the remaining packages into a single batch (base_temporary_package_manager.py:1218-1221); there is no explicit cycle representation in Prolog and no guaranteed-deterministic tie-break.
+
+** Dynamic Prolog Rules for Dependencies
+Dependency facts are emitted dynamically per run:
+- =requires_pip_install(repo, Pkg)= (-dynamic, environment_rules.pl:3) feeds =install_before(Dep, Pkg)= (environment_rules.pl:250);
+- =pip_runtime_dep(Pkg, Dep)= and =package_dependency_blocker(Pkg, Blocker)= load from =environment_rules.pl= / =package_mapping_rules.pl=;
+- =canonical_package/2= is appended to =package_mapping_rules.pl= at runtime.
+
+
+Because facts are both hand-authored and LLM-appended, contradictory or duplicated mappings are plausible (e.g. two =canonical_package= entries for one import, or =optional_system_pkg= vs. =pip_runtime_dep= disagreeing on provisioning backend). The architecture has not been audited for such contradictions or for scalability of the growing =package_mapping_rules.pl= cache.
+
+
+* Scope
+
+** In-Scope
+- Support for third-party dependencies that need to be installed via the container's package manager (i.e. variable dependency list for container image as opposed to static).
+  - Support packages only for Debian GNU/Linux 12 through =apt-get=.
+- Support for third-party dependencies that need to be built from source.
+  - Support dependencies whose source code is accessible via PyPI, git, and public archives.
+  - Support source distributions that can be built and installed using Python pip and venv.
+- Classify and persist dependency errors.
+  - Was the dependency's code accessible?
+  - Does the dependency require build tools other than the ones supported by this scope?
+- Investigate whether dynamically-generated Prolog rules for third-party dependencies can handle circular-dependencies.
+- Investigate how to solve dynamically-generated Prolog rules that cause contradictions.
+  - Take a look a T-Sort.
+- Support for third-party dependencies that need to be configured and run as daemons (e.g. database servers).
+
+** Out-of-Scope
+- Support for third-party dependencies that cannot be accessed via the open web (e.g. residing in private repositories).
+- Third-party dependencies accessible through means other than curl, git, wheel, or archive URLs.
+- Third-party dependencies that need to be built from source through a build system other than Python's pip and venv.
+- De-duplication of dependencies with distinct names but referring to the same code.
+- Support for host-level dependencies which cannot be installed from within the docker container. Kernel drivers for example.
+
+* User Stories
+
+** Variable Dependency List for Container
+The ACCRa pipeline should detect which dependencies are to be installed through the container's package manager. The pipeline should install those packages in the container.
+
+** Build Dependencies From Source
+The ACCRa pipeline should detect which dependencies are to be installed from source, and should proceed to install and build said dependencies.
+
+** Persistent Dependency-Type Classification
+Dependencies should be classified (e.g. installed from PyPI vs. installed via package manager vs. built from source) and the classification should persist through later stages of the ACCRa pipeline for potential further analysis and / or error handling.
+
+** Resolve Circular Dependencies
+The ACCRa pipeline should be able to detect and break circular dependencies.
+
+** Third-Party Daemon Services
+ACCRa should be able to install, configure, and run daemon services per container.
+
+* Requirements
+- Investigate and potentially fix contradictory dynamic Prolog rules when it comes to dependencies.
+- Investigate the complexity of the dynamic Prolog rules architecture. Try to reduce the complexity for better scalability.
+- Detect and consequently install dependencies inside the container via the system package manager.
+- Dependencies classified as build-from-source should be installed within a configurable timeout. Said dependencies must have their code accessible via curl, git, wheel, or archive URLs. The build system should be Python's pip and virtualenv.
+- Dependency cycles should either be resolved in a deterministic manner, or an error should be recorded.
+- It should be clear whether a dependency is installed via the system package manager, built from source, or installed and run as a daemon.
+- Third-party dependencies run as daemons should have their configurations persist for future runs.
+
+* Weekly Goals
+- [ ] Support system based on python 2.
+- [ ] Investigate complexity of impl rust.
+- [ ] Refine scope, more specific.
+- [ ] 200 projects.
