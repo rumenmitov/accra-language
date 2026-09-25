@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from .analyzer import Analyzer
 from .config import Config
 from .environment_manager import EnvironmentManager
-from .error import AccraBuildError, AccraInstallError, AccraRunError
+from .error import AccraError
 
 
 class LanguageSpec(BaseModel):
@@ -24,15 +24,22 @@ class Language(ABC):
         self.env_manager = env_manager or next(iter(spec.supported_env_managers))
 
     @abstractmethod
-    def detect_language(self, config: Config | None = None) -> bool: ...
+    def detect_language(self, config: Config | None = None) -> bool:
+        """Detects if the language is present in this project."""
+        ...
 
-    @abstractmethod
-    def install(self, config: Config | None = None) -> AccraInstallError | None: ...
+    def build(self, config: Config | None = None) -> AccraError | None:
+        """Builds the project."""
 
-    @abstractmethod
-    def build(self, config: Config | None = None) -> AccraBuildError | None: ...
+        cfg = config or self.spec.config
 
-    @abstractmethod
-    def run_program(
+        return self.env_manager.build(cfg)
+
+    def run(
         self, program: str, args: [str], config: Config | None = None
-    ) -> AccraRunError | None: ...
+    ) -> AccraError | None:
+        """Runs the project."""
+
+        cfg = config or self.spec.config
+
+        return self.env_manager.run(cfg)
