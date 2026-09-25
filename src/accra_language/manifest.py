@@ -3,11 +3,13 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel
 
 from .config import Config
+from .dockerfile import DockerfileInstruction
 
 
 class DependencySpec(BaseModel):
     name: str
     version: str
+    instructions: list[DockerfileInstruction]
 
 
 class ManifestSpec(BaseModel):

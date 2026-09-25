@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from .analyzer import Analyzer
 from .config import Config
 from .environment_manager import EnvironmentManager
-from .error import AccraError
+from .result import AccraResult
 
 
 class LanguageSpec(BaseModel):
@@ -28,18 +28,9 @@ class Language(ABC):
         """Detects if the language is present in this project."""
         ...
 
-    def build(self, config: Config | None = None) -> AccraError | None:
-        """Builds the project."""
+    def build(self, config: Config | None = None) -> AccraResult:
+        """Builds the project and determines the Dockerfile instructions."""
 
         cfg = config or self.spec.config
 
         return self.env_manager.build(cfg)
-
-    def run(
-        self, program: str, args: [str], config: Config | None = None
-    ) -> AccraError | None:
-        """Runs the project."""
-
-        cfg = config or self.spec.config
-
-        return self.env_manager.run(cfg)

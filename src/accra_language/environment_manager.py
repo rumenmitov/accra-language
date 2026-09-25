@@ -3,8 +3,10 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
 
 from .config import Config
-from .error import AccraBuildError, AccraError, AccraInstallError
+from .dockerfile import DockerfileInstruction
+from .error import AccraError
 from .manifest import DependencySpec, Manifest
+from .result import AccraResult
 
 
 class EnvironmentManagerSpec(BaseModel):
@@ -59,46 +61,60 @@ class EnvironmentManager(ABC):
         return dependencies
 
     @abstractmethod
-    def setup_environment(self, config: Config | None = None) -> AccraBuildError | None:
+    def setup_environment(self, config: Config | None = None) -> AccraResult:
         """Anything that is needed to be done before the language and dependencies are installed (e.g. setting up venv for Python)."""
         ...
 
     @abstractmethod
     def install_language(
         self, language_version: str | None = None, config: Config | None = None
-    ) -> AccraInstallError | None:
+    ) -> AccraResult:
         """Installs the language toolchain."""
         ...
 
     @abstractmethod
     def install_dependency(
         self, dependency: DependencySpec, config: Config | None = None
-    ) -> AccraInstallError | None:
+    ) -> AccraResult:
         """Installs a dependency."""
         ...
 
-    def build_environment(self, config: Config | None = None) -> AccraError | None:
+    def build_environment(self, config: Config | None = None) -> AccraResult:
         """Installs the language toolchain and the project's dependencies.
 
         See `setup_environment()` for work that needs to be done before anything is installed.
         """
 
         cfg = config or self.spec.config
-        err: AccraError | None = None
+
+        res: AccraResult = []
+        dockerfile_instructions: list[DockerfileInstruction] = []
 
         language_version: str | None = self._pick_language_version(cfg)
         dependencies: set[DependencySpec] | None = self._get_dependencies(cfg)
 
-        err = self.setup_environment(cfg)
-        if err:
-            return err
+        res = self.setup_environment(cfg)
+        match res:
+            case AccraError():
+                return res
+            case list():
+                dockerfile_instructions.extend(res)
 
-        err = self.install_language(language_version, cfg)
-        if err:
-            return err
+        res = self.install_language(language_version, cfg)
+        match res:
+            case AccraError():
+                return res
+            case list():
+                dockerfile_instructions.extend(res)
 
         for dependency in dependencies:
-            # TODO How should we handle the individual installation errors?
-            err = self.install_dependency(dependency, cfg)
+            res = self.install_dependency(dependency, cfg)
+            match res:
+                case AccraError():
+                    # TODO How should we handle the individual
+                    # installation errors? Perhaps we query the LLM?
+                    pass
+                case list():
+                    dockerfile_instructions.extend(res)
 
-        return err
+        return dockerfile_instructions
