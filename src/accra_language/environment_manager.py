@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from .config import Config
 from .dockerfile import DockerfileInstruction
-from .error import AccraError
+from .error import AccraError, AccraInstallError
 from .manifest import DependencySpec, Manifest
 from .result import AccraResult
 
@@ -25,25 +25,36 @@ class EnvironmentManager(ABC):
             if manifest.detect(spec.config)
         }
 
-    def _pick_language_version(self, config: Config | None = None) -> str | None:
+    def _pick_language_version(self, config: Config | None = None) -> str | AccraError:
         """Picks a language version that works for the project and its dependencies."""
 
         cfg = config or self.spec.config
 
-        supported_versions_per_manifest: list[set[str]] = set()
-        supported_versions: set[str] | None = None
-        language_version: str | None = None
+        supported_versions: set[str] | AccraError = (
+            self.get_supported_language_versions_from_code(cfg)
+        )
+        match supported_versions:
+            case set():
+                pass
+            case AccraError():
+                return supported_versions
 
         for manifest in self.present_manifests:
-            supported_versions_per_manifest.append(
-                manifest.get_supported_language_versions(cfg)
+            result: set[str] | AccraError = manifest.get_supported_language_versions(
+                cfg
             )
+            match result:
+                case set():
+                    supported_versions = supported_versions.intersection(result)
+                    if not supported_versions:
+                        return AccraInstallError(
+                            message="could not decide on a language version"
+                        )
 
-        supported_versions = set.intersection(*supported_versions_per_manifest) or None
-        if supported_versions:
-            language_version = next(iter(supported_versions))
+                case AccraError():
+                    return result
 
-        return language_version
+        return next(iter(supported_versions))
 
     def _get_dependencies(
         self, config: Config | None = None
@@ -64,6 +75,13 @@ class EnvironmentManager(ABC):
             return None
 
         return dependencies
+
+    @abstractmethod
+    def get_supported_language_versions_from_code(
+        self, config: Config | None = None
+    ) -> set[str] | AccraError:
+        """Returns all the language versions that the project code can run on."""
+        ...
 
     @abstractmethod
     def setup_environment(self, config: Config | None = None) -> AccraResult:
