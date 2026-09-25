@@ -1,0 +1,30 @@
+#+title: Roadmap
+
+The roadmap is split into three sub-tasks: Python3, Python2, and Rust. The Python3 sub-task should be the longest as that also includes refactoring the ACCRa codebase to support the language components.
+
+The *ACHIEVEMENT* sections reflect capabilities that should be integrated in the ACCRa codebase by the *DUE DATE* (unless specified otherwise in *COMMENTS*.
+
+* Python3
+| ACHIEVEMENT                                    |   DUE DATE | COMMENTS                               | ACHIEVED? |
+|------------------------------------------------+------------+----------------------------------------+-----------|
+| Installation of interpreter.                   | 2026-09-26 | Minor version should be accounted for. |           |
+| Installation of Python3 dependencies.          | 2026-09-26 |                                        |           |
+| Building Python3 environment.                  | 2026-10-02 |                                        |           |
+| Reflecting build process in DB.                | 2026-10-09 | Requires refactoring DB schema.        |           |
+| Migrate Prolog reasoning to Python3 component. | 2026-10-15 |                                        |           |
+
+* Python2
+| ACHIEVEMENT                           |   DUE DATE | COMMENTS                       | ACHIEVED? |
+|---------------------------------------+------------+--------------------------------+-----------|
+| Installation of interpreter.          | 2026-10-18 |                                |           |
+| Installation of Python2 dependencies. | 2026-10-18 |                                |           |
+| Building Python2 environment.         | 2026-10-18 |                                |           |
+| Python2 reasoning.                    | 2026-10-18 | Reuse Prolog rules from ACCRa. |           |
+
+* Rust
+| ACHIEVEMENT                         |   DUE DATE | COMMENTS                                       | ACHIEVED? |
+|-------------------------------------+------------+------------------------------------------------+-----------|
+| Installation of rust compiler.      | 2026-10-24 | Take into account =stable= vs =unstable=.          |           |
+| Installation of cargo dependencies. | 2026-10-24 |                                                |           |
+| Building Rust environment.          | 2026-10-24 |                                                |           |
+| Rust reasoning.                     |        ??? | Depends on how well we can write Prolog rules. |           |
