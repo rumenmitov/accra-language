@@ -1,13 +1,23 @@
+from abc import ABC
+
 from pydantic import BaseModel
 
 
-class AccraLanguageErrorType(Enum):
-    InstallError = (1,)
-    BuildError = (auto(),)
-    RunError = (auto(),)
-    AnalysisError = auto()
+class AccraError(ABC, BaseModel):
+    message: str
 
 
-class AccraLanguageError(BaseModel):
-    error: AccraLanguageErrorType
-    message: str | None
+class AccraInstallError(AccraError):
+    pass
+
+
+class AccraBuildError(AccraError):
+    pass
+
+
+class AccraRunError(AccraError):
+    pass
+
+
+class AccraAnalysisError(AccraError):
+    pass

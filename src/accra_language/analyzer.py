@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
-from os import PathLike
-from .error import AccraLanguageError
 from enum import Enum
+from os import PathLike
+
+from pydantic import BaseModel, Field
+
+from .error import AccraAnalysisError, AccraInstallError
 
 
 class Metrics(Enum):
@@ -59,7 +61,7 @@ class Analyzer(ABC):
         self.spec = spec
 
     @abstractmethod
-    def install(self) -> AccraLanguageError | None: ...
+    def install(self) -> AccraInstallError | None: ...
 
     @abstractmethod
-    def analyze(self, args: list[str]) -> set[Profile] | AccraLanguageError: ...
+    def analyze(self, args: list[str]) -> set[Profile] | AccraAnalysisError: ...

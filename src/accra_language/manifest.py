@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
 
 
 class DependencySpec(BaseModel):

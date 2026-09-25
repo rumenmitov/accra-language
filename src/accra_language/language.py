@@ -1,15 +1,18 @@
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
 from pathlib import Path
+
+from pydantic import BaseModel, Field
+
+from .analyzer import Analyzer
 from .environment_manager import EnvironmentManager
-from .error import AccraLanguageError
+from .error import AccraBuildError, AccraInstallError, AccraRunError
 
 
 class LanguageSpec(BaseModel):
     name: str
     version: str
-    env_managers: list[EnvironmentManager] = Field(default_factory=set)
-    analyzers: list[Analyzer] = Field(default_factory=set)
+    env_managers: set[EnvironmentManager] = Field(default_factory=set)
+    analyzers: set[Analyzer] = Field(default_factory=set)
 
 
 class Language(ABC):
@@ -20,10 +23,10 @@ class Language(ABC):
     def detect_language(self, root: Path) -> bool: ...
 
     @abstractmethod
-    def install(self) -> AccraLanguageError | None: ...
+    def install(self) -> AccraInstallError | None: ...
 
     @abstractmethod
-    def build(self) -> AccraLanguageError | None: ...
+    def build(self) -> AccraBuildError | None: ...
 
     @abstractmethod
-    def run_program(self, program: str, args: [str]) -> AccraLanguageError | None: ...
+    def run_program(self, program: str, args: [str]) -> AccraRunError | None: ...
