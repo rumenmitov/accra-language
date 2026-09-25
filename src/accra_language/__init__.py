@@ -1,3 +1,4 @@
+from .config import Config
 from .environment_manager import EnvironmentManager, EnvironmentManagerSpec
 from .error import (
     AccraAnalysisError,
@@ -15,6 +16,7 @@ __all__ = [
     "AccraError",
     "AccraInstallError",
     "AccraRunError",
+    "Config",
     "DependencySpec",
     "EnvironmentManager",
     "EnvironmentManagerSpec",

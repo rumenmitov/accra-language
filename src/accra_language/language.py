@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from .analyzer import Analyzer
+from .config import Config
 from .environment_manager import EnvironmentManager
 from .error import AccraBuildError, AccraInstallError, AccraRunError
 
@@ -11,6 +11,7 @@ from .error import AccraBuildError, AccraInstallError, AccraRunError
 class LanguageSpec(BaseModel):
     name: str
     version: str
+    config: Config
     supported_env_managers: set[EnvironmentManager] = Field(default_factory=set)
     analyzers: set[Analyzer] = Field(default_factory=set)
 
@@ -23,13 +24,15 @@ class Language(ABC):
         self.env_manager = env_manager or next(iter(spec.supported_env_managers))
 
     @abstractmethod
-    def detect_language(self, root: Path) -> bool: ...
+    def detect_language(self, config: Config | None = None) -> bool: ...
 
     @abstractmethod
-    def install(self) -> AccraInstallError | None: ...
+    def install(self, config: Config | None = None) -> AccraInstallError | None: ...
 
     @abstractmethod
-    def build(self) -> AccraBuildError | None: ...
+    def build(self, config: Config | None = None) -> AccraBuildError | None: ...
 
     @abstractmethod
-    def run_program(self, program: str, args: [str]) -> AccraRunError | None: ...
+    def run_program(
+        self, program: str, args: [str], config: Config | None = None
+    ) -> AccraRunError | None: ...

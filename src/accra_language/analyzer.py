@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from os import PathLike
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from .config import Config
 from .error import AccraAnalysisError, AccraInstallError
 
 
@@ -52,7 +53,8 @@ class ParallelismProfile(BaseModel):
 
 
 class AnalyzerSpec(BaseModel):
-    binary: PathLike[str]
+    binary: Path
+    config: Config
     metrics: set[Metrics] = Field(default_factory=set)
 
 
@@ -61,7 +63,9 @@ class Analyzer(ABC):
         self.spec = spec
 
     @abstractmethod
-    def install(self) -> AccraInstallError | None: ...
+    def install(self, config: Config | None = None) -> AccraInstallError | None: ...
 
     @abstractmethod
-    def analyze(self, args: list[str]) -> set[Profile] | AccraAnalysisError: ...
+    def analyze(
+        self, args: list[str], config: Config | None = None
+    ) -> set[Profile] | AccraAnalysisError: ...

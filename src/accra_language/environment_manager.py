@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
 
+from .config import Config
 from .error import AccraInstallError
 from .manifest import DependencySpec, Manifest
 
@@ -9,6 +10,7 @@ from .manifest import DependencySpec, Manifest
 class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
+    config: Config
     manifests: set[Manifest] = Field(default_factory=set)
 
 
@@ -17,9 +19,9 @@ class EnvironmentManager(ABC):
         self.spec = spec
 
     @abstractmethod
-    def install(self) -> AccraInstallError | None: ...
+    def install(self, config: Config | None = None) -> AccraInstallError | None: ...
 
     @abstractmethod
     def install_dependencies(
-        self, dependency: set[DependencySpec]
+        self, dependencies: set[DependencySpec], config: Config | None = None
     ) -> AccraInstallError | None: ...
