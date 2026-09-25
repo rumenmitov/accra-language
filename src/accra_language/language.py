@@ -24,7 +24,7 @@ class Language(ABC):
         self.env_manager = env_manager or next(iter(spec.supported_env_managers))
 
     @abstractmethod
-    def detect_language(self, config: Config | None = None) -> bool:
+    def detect(self, config: Config | None = None) -> bool:
         """Detects if the language is present in this project."""
         ...
 

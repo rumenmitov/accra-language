@@ -23,7 +23,7 @@ class Manifest(ABC):
         self.spec = spec
 
     @abstractmethod
-    def detect_manifest(self, config: Config | None = None) -> bool: ...
+    def detect(self, config: Config | None = None) -> bool: ...
 
     @abstractmethod
     def extract_dependencies(

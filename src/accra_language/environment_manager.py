@@ -13,12 +13,17 @@ class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
     config: Config
-    manifests: set[Manifest] = Field(default_factory=set)
+    supported_manifests: set[Manifest] = Field(default_factory=set)
 
 
 class EnvironmentManager(ABC):
     def __init__(self, spec: EnvironmentManagerSpec):
         self.spec = spec
+        self.present_manifests: set[Manifest] = {
+            manifest
+            for manifest in spec.supported_manifests
+            if manifest.detect(spec.config)
+        }
 
     def _pick_language_version(self, config: Config | None = None) -> str | None:
         """Picks a language version that works for the project and its dependencies."""
@@ -29,7 +34,7 @@ class EnvironmentManager(ABC):
         supported_versions: set[str] | None = None
         language_version: str | None = None
 
-        for manifest in self.spec.manifests:
+        for manifest in self.present_manifests:
             supported_versions_per_manifest.append(
                 manifest.get_supported_language_versions(cfg)
             )
@@ -48,7 +53,7 @@ class EnvironmentManager(ABC):
         cfg = config or self.spec.config
         dependencies: set[DependencySpec] = set()
 
-        for manifest in self.spec.manifests:
+        for manifest in self.present_manifests:
             manifest_dependencies: set[DependencySpec] | None = (
                 manifest.extract_dependencies(cfg)
             )
