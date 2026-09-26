@@ -1,22 +1,23 @@
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .config import Config
-from .dockerfile import DockerfileInstruction
 from .error import AccraError
 
 
 class DependencySpec(BaseModel):
+    # needed for so that DependencySpec can be used in sets
+    model_config = ConfigDict(frozen=True)
+
     name: str
     version: str
-    instructions: list[DockerfileInstruction]
 
 
 class ManifestSpec(BaseModel):
     name: str
     version: str
-    config: Config
+    config: Config = Config()
 
 
 class Manifest(ABC):

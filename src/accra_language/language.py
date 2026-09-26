@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, InstanceOf
 
 from .analyzer import Analyzer
 from .config import Config
@@ -11,9 +11,11 @@ from .result import AccraResult
 class LanguageSpec(BaseModel):
     name: str
     version: str
-    config: Config
-    supported_env_managers: set[EnvironmentManager] = Field(default_factory=set)
-    analyzers: set[Analyzer] = Field(default_factory=set)
+    config: Config = Config()
+    supported_env_managers: set[InstanceOf[EnvironmentManager]] = Field(
+        default_factory=set
+    )
+    analyzers: set[InstanceOf[Analyzer]] = Field(default_factory=set)
 
 
 class Language(ABC):

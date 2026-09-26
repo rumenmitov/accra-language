@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, InstanceOf
 
 from .config import Config
 from .dockerfile import DockerfileInstruction
@@ -12,8 +12,8 @@ from .result import AccraResult
 class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
-    config: Config
-    supported_manifests: set[Manifest] = Field(default_factory=set)
+    config: Config = Config()
+    supported_manifests: set[InstanceOf[Manifest]] = Field(default_factory=set)
 
 
 class EnvironmentManager(ABC):
@@ -31,7 +31,7 @@ class EnvironmentManager(ABC):
         cfg = config or self.spec.config
 
         supported_versions: set[str] | AccraError = (
-            self.get_supported_language_versions_from_code(cfg)
+            self._get_supported_language_versions_from_code(cfg)
         )
         match supported_versions:
             case set():
@@ -120,7 +120,7 @@ class EnvironmentManager(ABC):
         language_version: str | None = self._pick_language_version(cfg)
         dependencies: set[DependencySpec] | None = self._get_dependencies(cfg)
 
-        res = self.setup_environment(cfg)
+        res = self._setup_environment(cfg)
         match res:
             case AccraError():
                 return res
