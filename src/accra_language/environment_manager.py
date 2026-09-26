@@ -36,6 +36,8 @@ class EnvironmentManager(ABC):
         match supported_versions:
             case set():
                 pass
+            case None:
+                pass
             case AccraError():
                 return supported_versions
 
@@ -45,7 +47,11 @@ class EnvironmentManager(ABC):
             )
             match result:
                 case set():
-                    supported_versions = supported_versions.intersection(result)
+                    if not supported_versions:
+                        supported_versions = result
+                    else:
+                        supported_versions = supported_versions.intersection(result)
+
                     if not supported_versions:
                         return AccraInstallError(
                             message="could not decide on a language version"
@@ -76,33 +82,31 @@ class EnvironmentManager(ABC):
 
         return dependencies
 
-    @abstractmethod
-    def get_supported_language_versions_from_code(
+    def _get_supported_language_versions_from_code(
         self, config: Config | None = None
-    ) -> set[str] | AccraError:
+    ) -> set[str] | AccraError | None:
         """Returns all the language versions that the project code can run on."""
-        ...
+        return None
 
-    @abstractmethod
-    def setup_environment(self, config: Config | None = None) -> AccraResult:
+    def _setup_environment(self, config: Config | None = None) -> AccraResult:
         """Anything that is needed to be done before the language and dependencies are installed (e.g. setting up venv for Python)."""
-        ...
+        return []
 
     @abstractmethod
     def install_language(
         self, language_version: str | None = None, config: Config | None = None
     ) -> AccraResult:
         """Installs the language toolchain."""
-        ...
+        return []
 
     @abstractmethod
     def install_dependency(
         self, dependency: DependencySpec, config: Config | None = None
     ) -> AccraResult:
         """Installs a dependency."""
-        ...
+        return []
 
-    def build_environment(self, config: Config | None = None) -> AccraResult:
+    def build(self, config: Config | None = None) -> AccraResult:
         """Installs the language toolchain and the project's dependencies.
 
         See `setup_environment()` for work that needs to be done before anything is installed.

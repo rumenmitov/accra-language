@@ -26,18 +26,18 @@ class Manifest(ABC):
     @abstractmethod
     def detect(self, config: Config | None = None) -> bool:
         """Returns True if the manifest is present in the project, False otherwise."""
-        ...
+        return False
 
     @abstractmethod
     def extract_dependencies(
         self, config: Config | None = None
     ) -> set[DependencySpec] | None:
         """Returns all dependencies listed in the manifest."""
-        ...
+        return None
 
     @abstractmethod
     def get_supported_language_versions(
         self, config: Config | None = None
     ) -> set[str] | AccraError:
         """Returns all language versions that are allowed by the manifest."""
-        ...
+        return None
