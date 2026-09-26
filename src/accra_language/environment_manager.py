@@ -93,6 +93,11 @@ class EnvironmentManager(ABC):
         return []
 
     @abstractmethod
+    def install(self, config: Config | None = None) -> AccraResult:
+        """Installs the environment manager."""
+        return []
+
+    @abstractmethod
     def install_language(
         self, language_version: str | None = None, config: Config | None = None
     ) -> AccraResult:

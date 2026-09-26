@@ -45,10 +45,14 @@ class FakeEnvironmentManager(EnvironmentManager):
         super().__init__(spec)
 
     @override
+    def install(self, config: Config | None = None) -> AccraResult:
+        return [DockerfileInstruction('RUN echo "Fake environment manager installed!"')]
+
+    @override
     def install_language(
         self, language_version: str | None = None, config: Config | None = None
     ) -> AccraResult:
-        return [DockerfileInstruction('RUN echo "Test language installed!"')]
+        return [DockerfileInstruction('RUN echo "Fake language installed!"')]
 
     @override
     def install_dependency(
@@ -62,12 +66,22 @@ class FakeEnvironmentManager(EnvironmentManager):
 
 
 def test_build_environment():
-    env_mgr = FakeEnvironmentManager()
-    dockerfile: list[DockerfileInstruction] = env_mgr.build()
-
+    dockerfile: list[DockerfileInstruction] = []
     correct_dockerfile: list[DockerfileInstruction] = [
-        'RUN echo "Test language installed!"',
+        'RUN echo "Fake environment manager installed!"',
+        'RUN echo "Fake language installed!"',
         'RUN echo "Dependency foo-4.5 installed!"',
     ]
+
+    env_mgr = FakeEnvironmentManager()
+    result: AccraResult = env_mgr.install()
+
+    assert not isinstance(result, AccraError)
+    dockerfile.extend(result)
+
+    result = env_mgr.build()
+
+    assert not isinstance(result, AccraError)
+    dockerfile.extend(result)
 
     assert dockerfile == correct_dockerfile
