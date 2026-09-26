@@ -1,6 +1,6 @@
-from pydantic import NewType
+from typing import NewType
 
 from .dockerfile import DockerfileInstruction
-from .errors import AccraError
+from .error import AccraError
 
 AccraResult = NewType("AccraResult", list[DockerfileInstruction] | AccraError)
