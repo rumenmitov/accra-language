@@ -7,9 +7,7 @@ from .error import AccraError
 
 
 class DependencySpec(BaseModel):
-    # needed for so that DependencySpec can be used in sets
     model_config = ConfigDict(frozen=True)
-
     name: str
     version: str
 
