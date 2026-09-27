@@ -135,6 +135,9 @@ class EnvironmentManager(ABC):
             case list():
                 dockerfile_instructions.extend(res)
 
+        if not dependencies:
+            return dockerfile_instructions
+
         for dependency in dependencies:
             res = self.install_dependency(dependency, cfg)
             match res:
