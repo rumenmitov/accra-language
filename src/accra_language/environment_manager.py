@@ -12,6 +12,7 @@ from .result import AccraResult
 class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
+    default_language_version: str
     config: Config = Config()
     supported_manifests: set[InstanceOf[Manifest]] = Field(default_factory=set)
 
@@ -30,14 +31,12 @@ class EnvironmentManager(ABC):
 
         cfg = config or self.spec.config
 
-        supported_versions: set[str] | AccraError = (
+        supported_versions: set[str] | AccraError | None = (
             self._get_supported_language_versions_from_code(cfg)
         )
         match supported_versions:
-            case set():
-                pass
-            case None:
-                pass
+            case set() | None:
+                supported_versions = {self.spec.default_language_version}
             case AccraError():
                 return supported_versions
 
@@ -47,10 +46,7 @@ class EnvironmentManager(ABC):
             )
             match result:
                 case set():
-                    if not supported_versions:
-                        supported_versions = result
-                    else:
-                        supported_versions = supported_versions.intersection(result)
+                    supported_versions = supported_versions.intersection(result)
 
                     if not supported_versions:
                         return AccraInstallError(
@@ -99,7 +95,7 @@ class EnvironmentManager(ABC):
 
     @abstractmethod
     def install_language(
-        self, language_version: str | None = None, config: Config | None = None
+        self, language_version: str, config: Config | None = None
     ) -> AccraResult:
         """Installs the language toolchain."""
         return []
@@ -122,7 +118,7 @@ class EnvironmentManager(ABC):
         res: AccraResult = []
         dockerfile_instructions: list[DockerfileInstruction] = []
 
-        language_version: str | None = self._pick_language_version(cfg)
+        language_version: str = self._pick_language_version(cfg)
         dependencies: set[DependencySpec] | None = self._get_dependencies(cfg)
 
         res = self._setup_environment(cfg)

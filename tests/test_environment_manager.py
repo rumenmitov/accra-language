@@ -32,14 +32,17 @@ class FakeManifest(Manifest):
     def get_supported_language_versions(
         self, config: Config | None = None
     ) -> set[str] | AccraError:
-        return {"1.0"}
+        return {"9.0"}
 
 
 class FakeEnvironmentManager(EnvironmentManager):
     def __init__(self):
         manifest = FakeManifest()
         spec = EnvironmentManagerSpec(
-            name="fake-env-manager", version="1.0.0", supported_manifests={manifest}
+            name="fake-env-manager",
+            version="1.0.0",
+            default_language_version="9.0",
+            supported_manifests={manifest},
         )
 
         super().__init__(spec)
@@ -50,9 +53,13 @@ class FakeEnvironmentManager(EnvironmentManager):
 
     @override
     def install_language(
-        self, language_version: str | None = None, config: Config | None = None
+        self, language_version: str, config: Config | None = None
     ) -> AccraResult:
-        return [DockerfileInstruction('RUN echo "Fake language installed!"')]
+        return [
+            DockerfileInstruction(
+                f'RUN echo "Fake language, version {language_version}, installed!"'
+            )
+        ]
 
     @override
     def install_dependency(
@@ -69,7 +76,7 @@ def test_build_environment():
     dockerfile: list[DockerfileInstruction] = []
     correct_dockerfile: list[DockerfileInstruction] = [
         'RUN echo "Fake environment manager installed!"',
-        'RUN echo "Fake language installed!"',
+        'RUN echo "Fake language, version 9.0, installed!"',
         'RUN echo "Dependency foo-4.5 installed!"',
     ]
 
