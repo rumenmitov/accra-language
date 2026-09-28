@@ -15,7 +15,7 @@ class DependencySpec(BaseModel):
 class ManifestSpec(BaseModel):
     name: str
     version: str
-    config: Config = Config()
+    config: Config
 
 
 class Manifest(ABC):
@@ -23,20 +23,16 @@ class Manifest(ABC):
         self.spec = spec
 
     @abstractmethod
-    def detect(self, config: Config | None = None) -> bool:
+    def detect(self) -> bool:
         """Returns True if the manifest is present in the project, False otherwise."""
         return False
 
     @abstractmethod
-    def extract_dependencies(
-        self, config: Config | None = None
-    ) -> set[DependencySpec] | None:
+    def extract_dependencies(self) -> set[DependencySpec] | None:
         """Returns all dependencies listed in the manifest."""
         return None
 
     @abstractmethod
-    def get_supported_language_versions(
-        self, config: Config | None = None
-    ) -> set[str] | AccraError:
+    def get_supported_language_versions(self) -> set[str] | AccraError:
         """Returns all language versions that are allowed by the manifest."""
         return None

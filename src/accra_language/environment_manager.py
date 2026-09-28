@@ -13,7 +13,7 @@ class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
     default_language_version: str
-    config: Config = Config()
+    config: Config
     supported_manifests: set[InstanceOf[Manifest]] = Field(default_factory=set)
 
 
@@ -21,22 +21,17 @@ class EnvironmentManager(ABC):
     def __init__(self, spec: EnvironmentManagerSpec):
         self.spec = spec
         self.present_manifests: set[Manifest] = {
-            manifest
-            for manifest in spec.supported_manifests
-            if manifest.detect(spec.config)
+            manifest for manifest in spec.supported_manifests if manifest.detect()
         }
 
-    def _get_dependencies(
-        self, config: Config | None = None
-    ) -> set[DependencySpec] | None:
+    def _get_dependencies(self) -> set[DependencySpec] | None:
         """Collects the dependencies from all present manifests into a single set."""
 
-        cfg = config or self.spec.config
         dependencies: set[DependencySpec] = set()
 
         for manifest in self.present_manifests:
             manifest_dependencies: set[DependencySpec] | None = (
-                manifest.extract_dependencies(cfg)
+                manifest.extract_dependencies()
             )
             if manifest_dependencies:
                 dependencies.update(manifest_dependencies)
@@ -47,30 +42,26 @@ class EnvironmentManager(ABC):
         return dependencies
 
     def _get_supported_language_versions_from_code(
-        self, config: Config | None = None
+        self,
     ) -> set[str] | AccraError | None:
         """Returns all the language versions that the project code can run on."""
         return None
 
     @abstractmethod
-    def setup(self, config: Config | None = None) -> AccraResult:
+    def setup(self) -> AccraResult:
         """Installation of the language toolchain (e.g. language compiler / interpreter, package manager) and setup of the environment (e.g. venv for Python)."""
         return []
 
     @abstractmethod
-    def _install_dependency(
-        self, dependency: DependencySpec, config: Config | None = None
-    ) -> AccraResult:
+    def _install_dependency(self, dependency: DependencySpec) -> AccraResult:
         """Installs a dependency."""
         return []
 
-    def select_language_version(self, config: Config | None = None) -> str | AccraError:
+    def select_language_version(self) -> str | AccraError:
         """Selects a language version that works for the project and its dependencies."""
 
-        cfg = config or self.spec.config
-
         supported_versions: set[str] | AccraError | None = (
-            self._get_supported_language_versions_from_code(cfg)
+            self._get_supported_language_versions_from_code()
         )
         match supported_versions:
             case set() | None:
@@ -79,9 +70,7 @@ class EnvironmentManager(ABC):
                 return supported_versions
 
         for manifest in self.present_manifests:
-            result: set[str] | AccraError = manifest.get_supported_language_versions(
-                cfg
-            )
+            result: set[str] | AccraError = manifest.get_supported_language_versions()
             match result:
                 case set():
                     supported_versions = supported_versions.intersection(result)
@@ -96,15 +85,13 @@ class EnvironmentManager(ABC):
 
         return next(iter(supported_versions))
 
-    def install_dependencies(self, config: Config | None = None) -> AccraResult:
+    def install_dependencies(self) -> AccraResult:
         """Installs all project dependencies."""
-
-        cfg = config or self.spec.config
 
         res: AccraResult = []
         dockerfile_instructions: list[DockerfileInstruction] = []
 
-        dependencies: set[DependencySpec] | None = self._get_dependencies(cfg)
+        dependencies: set[DependencySpec] | None = self._get_dependencies()
 
         if not dependencies:
             return []
@@ -120,6 +107,6 @@ class EnvironmentManager(ABC):
 
         return dockerfile_instructions
 
-    def build(self, config: Config | None = None) -> AccraResult:
+    def build(self) -> AccraResult:
         """Build / compile the project."""
         return []

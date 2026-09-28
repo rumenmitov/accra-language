@@ -13,7 +13,7 @@ from .result import AccraResult
 class LanguageSpec(BaseModel):
     name: str
     version: str
-    config: Config = Config()
+    config: Config
     supported_env_managers: set[InstanceOf[EnvironmentManager]] = Field(
         default_factory=set
     )
@@ -30,35 +30,33 @@ class Language(ABC):
         )
 
     @abstractmethod
-    def detect(self, config: Config | None = None) -> bool:
+    def detect(self) -> bool:
         """Detects if the language is present in this project."""
         ...
 
-    def build(self, config: Config | None = None) -> AccraResult:
+    def build(self) -> AccraResult:
         """Builds the project and determines the Dockerfile instructions."""
 
         if not self.env_manager:
             return []
 
-        cfg = config or self.spec.config
-
         dockerfile: list[DockerfileInstruction] = []
 
-        setup_result: AccraResult = self.env_manager.setup(cfg)
+        setup_result: AccraResult = self.env_manager.setup()
         match setup_result:
             case list():
                 dockerfile.extend(setup_result)
             case AccraError():
                 return setup_result
 
-        installation_result: AccraResult = self.env_manager.install_dependencies(cfg)
+        installation_result: AccraResult = self.env_manager.install_dependencies()
         match installation_result:
             case list():
                 dockerfile.extend(installation_result)
             case AccraError():
                 return installation_result
 
-        build_result: AccraResult = self.env_manager.build(cfg)
+        build_result: AccraResult = self.env_manager.build()
         match build_result:
             case list():
                 dockerfile.extend(build_result)
