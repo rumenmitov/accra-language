@@ -25,7 +25,9 @@ class Language(ABC):
         self, spec: LanguageSpec, env_manager: EnvironmentManager | None = None
     ):
         self.spec = spec
-        self.env_manager = env_manager or next(iter(spec.supported_env_managers))
+        self.env_manager: EnvironmentManager | None = env_manager or next(
+            iter(spec.supported_env_managers)
+        )
 
     @abstractmethod
     def detect(self, config: Config | None = None) -> bool:
@@ -34,6 +36,9 @@ class Language(ABC):
 
     def build(self, config: Config | None = None) -> AccraResult:
         """Builds the project and determines the Dockerfile instructions."""
+
+        if not self.env_manager:
+            return []
 
         cfg = config or self.spec.config
 
