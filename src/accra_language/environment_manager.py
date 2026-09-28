@@ -73,7 +73,8 @@ class EnvironmentManager(ABC):
             result: set[str] | AccraError = manifest.get_supported_language_versions()
             match result:
                 case set():
-                    supported_versions = supported_versions.intersection(result)
+                    if result:
+                        supported_versions = supported_versions.intersection(result)
 
                     if not supported_versions:
                         return AccraInstallError(
