@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from .analyzer import Analyzer
 from .config import Config
+from .dockerfile import DockerfileInstruction
 from .environment_manager import EnvironmentManager
+from .error import AccraError
 from .result import AccraResult
 
 
@@ -35,4 +37,25 @@ class Language(ABC):
 
         cfg = config or self.spec.config
 
-        return self.env_manager.build(cfg)
+        dockerfile: list[DockerfileInstruction] = []
+
+        setup_result: AccraResult = self.env_manager.setup(cfg)
+        match setup_result:
+            case list():
+                dockerfile.extend(setup_result)
+            case AccraError():
+                return setup_result
+
+        installation_result: AccraResult = self.env_manager.install_dependencies(cfg)
+        match installation_result:
+            case list():
+                dockerfile.extend(installation_result)
+            case AccraError():
+                return installation_result
+
+        build_result: AccraResult = self.env_manager.build(cfg)
+        match build_result:
+            case list():
+                dockerfile.extend(build_result)
+            case AccraError():
+                return build_result

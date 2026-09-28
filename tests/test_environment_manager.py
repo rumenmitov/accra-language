@@ -48,21 +48,22 @@ class FakeEnvironmentManager(EnvironmentManager):
         super().__init__(spec)
 
     @override
-    def install(self, config: Config | None = None) -> AccraResult:
-        return [DockerfileInstruction('RUN echo "Fake environment manager installed!"')]
+    def setup(self, config: Config | None = None) -> AccraResult:
+        language_ver_result: str | AccraError = self.select_language_version()
+        if isinstance(language_ver_result, AccraError):
+            return language_ver_result
 
-    @override
-    def install_language(
-        self, language_version: str, config: Config | None = None
-    ) -> AccraResult:
         return [
             DockerfileInstruction(
-                f'RUN echo "Fake language, version {language_version}, installed!"'
-            )
+                f'RUN echo "Fake language, version {language_ver_result}, installed!"'
+            ),
+            DockerfileInstruction(
+                'RUN echo "Fake environment manager setup complete!"'
+            ),
         ]
 
     @override
-    def install_dependency(
+    def _install_dependency(
         self, dependency: DependencySpec, config: Config | None = None
     ) -> AccraResult:
         return [
@@ -71,17 +72,27 @@ class FakeEnvironmentManager(EnvironmentManager):
             )
         ]
 
+    @override
+    def build(self, config: Config | None = None) -> AccraResult:
+        return [DockerfileInstruction('RUN echo "Build complete!"')]
 
-def test_build_environment():
+
+def test_environment_manager():
     dockerfile: list[DockerfileInstruction] = []
     correct_dockerfile: list[DockerfileInstruction] = [
-        'RUN echo "Fake environment manager installed!"',
         'RUN echo "Fake language, version 9.0, installed!"',
+        'RUN echo "Fake environment manager setup complete!"',
         'RUN echo "Dependency foo-4.5 installed!"',
+        'RUN echo "Build complete!"',
     ]
 
     env_mgr = FakeEnvironmentManager()
-    result: AccraResult = env_mgr.install()
+    result: AccraResult = env_mgr.setup()
+
+    assert not isinstance(result, AccraError)
+    dockerfile.extend(result)
+
+    result = env_mgr.install_dependencies()
 
     assert not isinstance(result, AccraError)
     dockerfile.extend(result)
