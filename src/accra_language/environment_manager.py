@@ -106,7 +106,7 @@ class EnvironmentManager(ABC):
                 case list():
                     dockerfile_instructions.extend(res)
 
-        return dockerfile_instructions
+        return sorted(dockerfile_instructions)
 
     def build(self) -> AccraResult:
         """Build / compile the project."""
