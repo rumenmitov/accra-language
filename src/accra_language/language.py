@@ -62,3 +62,5 @@ class Language(ABC):
                 dockerfile.extend(build_result)
             case AccraError():
                 return build_result
+
+        return dockerfile
