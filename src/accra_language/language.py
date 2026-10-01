@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from pydantic import BaseModel, Field, InstanceOf
 
@@ -29,10 +29,9 @@ class Language(ABC):
             iter(spec.supported_env_managers)
         )
 
-    @abstractmethod
     def detect(self) -> bool:
         """Detects if the language is present in this project."""
-        ...
+        return bool(self.env_manager.select_language_version())
 
     def build(self) -> AccraResult:
         """Builds the project and determines the Dockerfile instructions."""

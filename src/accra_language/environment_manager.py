@@ -22,6 +22,7 @@ class EnvironmentManager(ABC):
         self.present_manifests: set[Manifest] = {
             manifest for manifest in spec.supported_manifests if manifest.detect()
         }
+        self.selected_language_version: str | None = None
 
     def _get_dependencies(self) -> set[DependencySpec] | None:
         """Collects the dependencies from all present manifests into a single set."""
@@ -53,6 +54,9 @@ class EnvironmentManager(ABC):
     def select_language_version(self) -> str | AccraError:
         """Selects a language version that works for the project and its dependencies."""
 
+        if self.selected_language_version:
+            return self.selected_language_version
+
         supported_versions_from_manifests: list[set[str]] | AccraError = []
         supported_versions: set[str] = set()
 
@@ -69,7 +73,8 @@ class EnvironmentManager(ABC):
         if not supported_versions:
             return AccraInstallError(message="could not decide on a language version")
 
-        return next(iter(supported_versions))
+        self.selected_language_version = next(iter(supported_versions))
+        return self.selected_language_version
 
     def install_dependencies(self) -> AccraResult:
         """Installs all project dependencies."""
