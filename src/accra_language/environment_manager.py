@@ -63,11 +63,12 @@ class EnvironmentManager(ABC):
         supported_versions: set[str] | AccraError | None = (
             self._get_supported_language_versions_from_code()
         )
-        match supported_versions:
-            case set() | None:
-                supported_versions = {self.spec.default_language_version}
-            case AccraError():
-                return supported_versions
+
+        if isinstance(supported_versions, AccraError):
+            return supported_versions
+
+        if not supported_versions:
+            supported_versions = {self.spec.default_language_version}
 
         for manifest in self.present_manifests:
             result: set[str] | AccraError = manifest.get_supported_language_versions()
