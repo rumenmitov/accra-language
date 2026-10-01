@@ -12,7 +12,6 @@ from .result import AccraResult
 class EnvironmentManagerSpec(BaseModel):
     name: str
     version: str
-    default_language_version: str
     config: Config
     supported_manifests: set[InstanceOf[Manifest]] = Field(default_factory=set)
 
@@ -41,12 +40,6 @@ class EnvironmentManager(ABC):
 
         return dependencies
 
-    def _get_supported_language_versions_from_code(
-        self,
-    ) -> set[str] | AccraError | None:
-        """Returns all the language versions that the project code can run on."""
-        return None
-
     @abstractmethod
     def setup(self) -> AccraResult:
         """Installation of the language toolchain (e.g. language compiler / interpreter, package manager) and setup of the environment (e.g. venv for Python)."""
@@ -60,30 +53,21 @@ class EnvironmentManager(ABC):
     def select_language_version(self) -> str | AccraError:
         """Selects a language version that works for the project and its dependencies."""
 
-        supported_versions: set[str] | AccraError | None = (
-            self._get_supported_language_versions_from_code()
-        )
-
-        if isinstance(supported_versions, AccraError):
-            return supported_versions
-
-        if not supported_versions:
-            supported_versions = {self.spec.default_language_version}
+        supported_versions_from_manifests: list[set[str]] | AccraError = []
+        supported_versions: set[str] = set()
 
         for manifest in self.present_manifests:
             result: set[str] | AccraError = manifest.get_supported_language_versions()
             match result:
                 case set():
-                    if result:
-                        supported_versions = supported_versions.intersection(result)
-
-                    if not supported_versions:
-                        return AccraInstallError(
-                            message="could not decide on a language version"
-                        )
+                    supported_versions_from_manifests.append(result)
 
                 case AccraError():
                     return result
+
+        supported_versions = set.intersection(*supported_versions_from_manifests)
+        if not supported_versions:
+            return AccraInstallError(message="could not decide on a language version")
 
         return next(iter(supported_versions))
 

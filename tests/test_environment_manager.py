@@ -37,7 +37,6 @@ class FakeEnvironmentManager(EnvironmentManager):
         spec = EnvironmentManagerSpec(
             name="fake-env-manager",
             version="1.0.0",
-            default_language_version="9.0",
             supported_manifests={manifest},
             config=config,
         )
