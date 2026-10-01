@@ -73,7 +73,7 @@ class EnvironmentManager(ABC):
         if not supported_versions:
             return AccraInstallError(message="could not decide on a language version")
 
-        self.selected_language_version = next(iter(supported_versions))
+        self.selected_language_version = next(iter(sorted(supported_versions)))
         return self.selected_language_version
 
     def install_dependencies(self) -> AccraResult:
