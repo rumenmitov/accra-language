@@ -29,9 +29,13 @@ class Language(ABC):
             iter(spec.supported_env_managers)
         )
 
-    def detect(self) -> bool:
+    def detect(self) -> bool | AccraError:
         """Detects if the language is present in this project."""
-        return bool(self.env_manager.select_language_version())
+        selected_language_version = self.env_manager.select_language_version()
+        if isinstance(selected_language_version, AccraError):
+            return selected_language_version
+
+        return bool(selected_language_version)
 
     def build(self) -> AccraResult:
         """Builds the project and determines the Dockerfile instructions."""
