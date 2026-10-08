@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from .analyzer import Analyzer
 from .config import Config
-from .dockerfile import DockerfileInstruction
 from .environment_manager import EnvironmentManager
 from .error import AccraError
 from .result import AccraResult
@@ -31,7 +30,9 @@ class Language(ABC):
 
     def detect(self) -> bool | AccraError:
         """Detects if the language is present in this project."""
-        selected_language_version = self.env_manager.select_language_version()
+        selected_language_version: str | AccraError = (
+            self.env_manager.select_language_version()
+        )
         if isinstance(selected_language_version, AccraError):
             return selected_language_version
 
@@ -40,30 +41,18 @@ class Language(ABC):
     def build(self) -> AccraResult:
         """Builds the project and determines the Dockerfile instructions."""
 
+        result = AccraResult()
+
         if not self.env_manager:
-            return []
+            return result
 
-        dockerfile: list[DockerfileInstruction] = []
+        result.extend(self.env_manager.setup())
+        if not result.success:
+            return result
 
-        setup_result: AccraResult = self.env_manager.setup()
-        match setup_result:
-            case list():
-                dockerfile.extend(setup_result)
-            case AccraError():
-                return setup_result
+        result.extend(self.env_manager.install_dependencies())
+        if not result.success:
+            return result
 
-        installation_result: AccraResult = self.env_manager.install_dependencies()
-        match installation_result:
-            case list():
-                dockerfile.extend(installation_result)
-            case AccraError():
-                return installation_result
-
-        build_result: AccraResult = self.env_manager.build()
-        match build_result:
-            case list():
-                dockerfile.extend(build_result)
-            case AccraError():
-                return build_result
-
-        return dockerfile
+        result.extend(self.env_manager.build())
+        return result

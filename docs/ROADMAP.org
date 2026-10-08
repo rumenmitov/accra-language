@@ -11,7 +11,7 @@ The *ACHIEVEMENT* sections reflect capabilities that should be integrated in the
 | Installation of Python3 dependencies.          | 2026-09-29 |                                        | INTEGRATION |
 | Building Python3 environment.                  | 2026-10-02 |                                        | INTEGRATION |
 | Reflecting build process in DB.                | 2026-10-09 | Requires refactoring DB schema.        | STARTED     |
-| Migrate Prolog reasoning to Python3 component. | 2026-10-15 |                                        |             |
+| Migrate Prolog reasoning to Python3 component. | 2026-10-15 |                                        | STARTED     |
 
 * Python2
 | ACHIEVEMENT                           |   DUE DATE | COMMENTS                       | STATUS  |
@@ -23,8 +23,8 @@ The *ACHIEVEMENT* sections reflect capabilities that should be integrated in the
 
 * Rust
 | ACHIEVEMENT                         |   DUE DATE | COMMENTS                                       | STATUS |
-|-------------------------------------+------------+------------------------------------------------+-----------|
-| Installation of Rust compiler.      | 2026-10-24 | Take into account =stable= vs =unstable=.          |           |
-| Installation of cargo dependencies. | 2026-10-24 |                                                |           |
-| Building Rust environment.          | 2026-10-24 |                                                |           |
-| Rust reasoning.                     |        ??? | Depends on how well we can write Prolog rules. |           |
+|-------------------------------------+------------+------------------------------------------------+--------|
+| Installation of Rust compiler.      | 2026-10-24 | Take into account =stable= vs =unstable=.          |        |
+| Installation of cargo dependencies. | 2026-10-24 |                                                |        |
+| Building Rust environment.          | 2026-10-24 |                                                |        |
+| Rust reasoning.                     |        ??? | Depends on how well we can write Prolog rules. |        |
