@@ -1,6 +1,11 @@
 from .config import Config
+from .dependency import Dependency
 from .dockerfile import DockerfileInstruction, generate_dockerfile
-from .environment_manager import EnvironmentManager, EnvironmentManagerSpec
+from .environment_manager import (
+    AccraFailedDependencyInstallError,
+    EnvironmentManager,
+    EnvironmentManagerSpec,
+)
 from .error import (
     AccraAnalysisError,
     AccraBuildError,
@@ -9,18 +14,19 @@ from .error import (
     AccraRunError,
 )
 from .language import Language, LanguageSpec
-from .manifest import DependencySpec, Manifest, ManifestSpec
+from .manifest import Manifest, ManifestSpec
 from .result import AccraResult
 
 __all__ = [
     "AccraAnalysisError",
     "AccraBuildError",
     "AccraError",
+    "AccraFailedDependencyInstallError",
     "AccraInstallError",
     "AccraResult",
     "AccraRunError",
     "Config",
-    "DependencySpec",
+    "Dependency",
     "DockerfileInstruction",
     "EnvironmentManager",
     "EnvironmentManagerSpec",

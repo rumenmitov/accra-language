@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, InstanceOf
 
 from .config import Config
-from .dockerfile import DockerfileInstruction
+from .dependency import Dependency
 from .error import AccraError, AccraInstallError
-from .manifest import DependencySpec, Manifest
+from .manifest import Manifest
 from .result import AccraResult
 
 
@@ -24,13 +24,13 @@ class EnvironmentManager(ABC):
         }
         self.selected_language_version: str | None = None
 
-    def _get_dependencies(self) -> set[DependencySpec] | None:
+    def _get_dependencies(self) -> set[Dependency] | None:
         """Collects the dependencies from all present manifests into a single set."""
 
-        dependencies: set[DependencySpec] = set()
+        dependencies: set[Dependency] = set()
 
         for manifest in self.present_manifests:
-            manifest_dependencies: set[DependencySpec] | None = (
+            manifest_dependencies: set[Dependency] | None = (
                 manifest.extract_dependencies()
             )
             if manifest_dependencies:
@@ -44,12 +44,12 @@ class EnvironmentManager(ABC):
     @abstractmethod
     def setup(self) -> AccraResult:
         """Installation of the language toolchain (e.g. language compiler / interpreter, package manager) and setup of the environment (e.g. venv for Python)."""
-        return []
+        return AccraResult()
 
     @abstractmethod
-    def _install_dependency(self, dependency: DependencySpec) -> AccraResult:
+    def _install_dependency(self, dependency: Dependency) -> AccraResult:
         """Installs a dependency."""
-        return []
+        return AccraResult()
 
     def select_language_version(self) -> str | AccraError:
         """Selects a language version that works for the project and its dependencies."""
@@ -79,25 +79,29 @@ class EnvironmentManager(ABC):
     def install_dependencies(self) -> AccraResult:
         """Installs all project dependencies."""
 
-        res: AccraResult = []
-        dockerfile_instructions: list[DockerfileInstruction] = []
+        result = AccraResult()
 
-        dependencies: set[DependencySpec] | None = self._get_dependencies()
+        dependencies: set[Dependency] | None = self._get_dependencies()
 
         if not dependencies:
-            return []
+            return result
 
-        for dependency in dependencies:
-            res = self._install_dependency(dependency)
-            match res:
-                case AccraError():
-                    return res
+        dependencies_sorted: list[Dependency] = sorted(dependencies)
 
-                case list():
-                    dockerfile_instructions.extend(res)
+        for dependency in dependencies_sorted:
+            result.extend(self._install_dependency(dependency))
+            if not result.success:
+                return result
 
-        return sorted(dockerfile_instructions)
+        return result
 
     def build(self) -> AccraResult:
         """Build / compile the project."""
-        return []
+        return AccraResult()
+
+
+# NOTE defined here and not in error.py to prevent circular dependency
+# with environment_manager field.
+class AccraFailedDependencyInstallError(AccraInstallError, BaseModel):
+    dependency: Dependency
+    environment_manager: InstanceOf[EnvironmentManager]
