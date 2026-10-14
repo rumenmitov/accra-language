@@ -35,5 +35,4 @@ __all__ = [
     "LanguageSpec",
     "Manifest",
     "ManifestSpec",
-    "generate_dockerfile",
 ]
