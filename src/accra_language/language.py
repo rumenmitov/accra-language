@@ -12,7 +12,7 @@ from .environment_manager import EnvironmentManager
 from .error import (
     AccraError,
 )
-from .knowledge_extractor import (
+from .prolog_fact import (
     PrologFact,
     multilingual_plugin_error,
     project_not_initializable,

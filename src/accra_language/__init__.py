@@ -21,7 +21,9 @@ from .environment_manager import (
     EnvironmentManagerSpec,
 )
 from .error import AccraError
-from .knowledge_extractor import (
+from .language import Language, LanguageSpec
+from .manifest import Manifest, ManifestSpec
+from .prolog_fact import (
     PrologFact,
     blocking_dependency,
     cli_help_available,
@@ -64,8 +66,6 @@ from .knowledge_extractor import (
     symbol_signature,
     uses_input_method,
 )
-from .language import Language, LanguageSpec
-from .manifest import Manifest, ManifestSpec
 from .result import AccraResult
 from .run import EntryPoint
 from .script import ScriptProfile

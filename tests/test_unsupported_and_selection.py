@@ -13,10 +13,15 @@ from accra_language import (
 from accra_language.language import _version_key
 
 
+class _StaticLanguage(Language):
+    def extract_static_facts(self):
+        return set()
+
+
 def _bare_language():
     config = Config()
     manager = ConfigurableEnvironmentManager(config)
-    return Language(
+    return _StaticLanguage(
         LanguageSpec(
             name="bare",
             version="1",
@@ -45,7 +50,7 @@ def test_manager_with_manifests_is_preferred():
         config, manifests=[manifest], name="zeta"
     )
     without = ConfigurableEnvironmentManager(config, name="alpha")
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="",
             version="",
@@ -66,7 +71,7 @@ def test_versions_compare_numerically():
             name="same", version=version, supported_manifests=set(), config=config
         )
         managers.append(manager)
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers=set(managers)
         )

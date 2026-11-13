@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field, InstanceOf
 from .config import Config
 from .dependency import Dependency
 from .error import AccraError
-from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
 from .manifest import Manifest
+from .prolog_fact import multilingual_plugin_error, project_not_initializable
 from .result import AccraResult
 
 # Orders language versions, most preferred first. The plugin defines what
