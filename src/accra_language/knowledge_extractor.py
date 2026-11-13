@@ -34,7 +34,8 @@ class PrologFact(ABC, BaseModel):
 # TODO In the future, we can gradually add more prolog facts to
 # distinguish different errors. Not a prioroty though!
 class multilingual_plugin_error(PrologFact, AccraError, BaseModel):
-    """Any error caused by erroneous / misconfigured ACCRa plugins.
+    """Any error caused by erroneous / misconfigured ACCRa plugins
+    (e.g. timeout values are too short).
 
     For errors stemming from the structure of the project itself use
     `project_not_initializable`.
@@ -52,102 +53,163 @@ class multilingual_plugin_error(PrologFact, AccraError, BaseModel):
 
 
 class project_not_initializable(PrologFact, AccraError, BaseModel):
-    """When something is wrong with the project itself."""
+    """An error that results in a project that cannot be ran."""
 
 
 class blocking_dependency(PrologFact, AccraError, BaseModel):
+    """A dependency that is not present and could not be installed or ran."""
+
     dependency: str
     version: str
 
 
-class execution_failure(PrologFact, AccraError, BaseModel):
+class execution_failure_missing_file(PrologFact, AccraError, BaseModel):
+    """Module failed to run due to a missing file."""
+
+    module: Path
+    missing_file: Path
+
+
+class execution_failure_missing_module(PrologFact, AccraError, BaseModel):
+    """Module failed to run due to a missing module."""
+
+    module: Path
+    missing_module: Path
+
+
+class execution_failure_missing_argument(PrologFact, AccraError, BaseModel):
+    """Module failed to run due to a missing argument."""
+
+    module: Path
+    missing_argument: str
+
+
+class execution_failure_timeout(PrologFact, AccraError, BaseModel):
+    """Module failed to terminate in the configured time."""
+
+    module: Path
+    missing_argument: str
+
+
+class execution_failure_other(PrologFact, AccraError, BaseModel):
+    """Module failed to run successfully for some other reason."""
+
     module: Path
 
 
-class execution_success(PrologFact, BaseModel):
-    module: Path
+class known_blocked_dependency(PrologFact, BaseModel):
+    """Any dependency that is known to be unsupported by ACCRa."""
+
+    dependency: str
+    version: str
 
 
-class candidate_entry_point(PrologFact, BaseModel):
+class has_main(PrologFact, BaseModel):
+    """
+    A file that has a language-specific symbol (e.g. main())
+    designating it as an entrypoint.
+
+    """
+
     file: Path
 
 
-class weak_candidate(PrologFact, BaseModel):
+class uses_input_method(PrologFact, BaseModel):
+    """
+    An input method that the file accepts, e.g. argv, interactive
+    (i.e. waits for user to type in input), etc.
+
+    """
+
     file: Path
+    method: str
 
 
-class preferred_entry_point(PrologFact, BaseModel):
-    file: Path
+class documented_entry_point(PrologFact, BaseModel):
+    """An entry point specified in the documentation."""
 
-
-class likely_input_extension(PrologFact, BaseModel):
-    file: Path
-    ext: str
-
-
-class showcase_api_target(PrologFact, BaseModel):
-    module: Path
-    symbol: str
-
-
-class preferred_showcase_symbol(PrologFact, BaseModel):
-    module: Path
-    symbol: str
+    entry_point: Path
 
 
 class public_module(PrologFact, BaseModel):
+    """A project module intended to be used in other projects, i.e. an exported module."""
+
     module: Path
 
 
-class public_symbol(PrologFact, BaseModel):
+class exported_symbol(PrologFact, BaseModel):
+    """A symbol exported as part of the project's API.
+
+    `symbol_kind` describes the symbol's category, e.g. function, class, variable, etc.
+
+    """
+
     module: Path
     symbol: str
     symbol_kind: str
 
 
 class symbol_has_docstring(PrologFact, BaseModel):
+    """A documented symbol."""
+
     module: Path
     symbol: str
 
 
 class symbol_signature(PrologFact, BaseModel):
+    """A symbol's function signature, in the case that the symbol is a function."""
+
     module: Path
     symbol: str
     signature: str
 
 
 class symbol_param_annotated(PrologFact, BaseModel):
+    """A parameter that is type-annotated in the function."""
+
     module: Path
-    symbol: str
+    function: str
     parameter: str
 
 
 class driver_symbol(PrologFact, BaseModel):
+    """A symbol related to the entry point of the program, rather than the exposed API, e.g. main()."""
+
     module: Path
     symbol: str
 
 
 class pure_side_effect_symbol(PrologFact, BaseModel):
+    """A function symbol of a function with no return value."""
+
     module: Path
     symbol: str
 
 
-class exported(PrologFact, BaseModel):
-    module: Path
-    symbol: str
+class imports_module(PrologFact, BaseModel):
+    """A module importing another module."""
 
-
-class imported(PrologFact, BaseModel):
     module: Path
     imported_module: Path
 
 
+class entry_point_imports_module(PrologFact, BaseModel):
+    """A module imported by an entry point."""
+
+    entry_point: Path
+    imported_module: Path
+
+
 class source_file(PrologFact, BaseModel):
+    """A source file of a given programming language."""
+
     language: str
     path: Path
 
 
 class exe_file(PrologFact, BaseModel):
+    """An executable file."""
+
     path: Path
 
 
@@ -156,52 +218,119 @@ class results_file(PrologFact, BaseModel):
 
 
 class defines_function(PrologFact, BaseModel):
+    """A function defined in a module."""
+
     module: Path
     function_name: str
 
 
 class defines_class(PrologFact, BaseModel):
+    """A class defined in a module."""
+
     module: Path
     class_name: str
 
 
+class readme_has_code_block(PrologFact, BaseModel):
+    """A code block found in the README."""
+
+    language: str
+
+
+class readme_mentions_source_file(PrologFact, BaseModel):
+    """A source file mentioned in the README."""
+
+    language: str
+    source_file: Path
+
+
+class readme_mentions_command(PrologFact, BaseModel):
+    """A command found in the README."""
+
+    command: str
+
+
+class readme_mentions_symbol(PrologFact, BaseModel):
+    """A symbol mentioned in the README."""
+
+    symbol: str
+
+
 class doc_has_code_block(PrologFact, BaseModel):
+    """A code block found in the documentation."""
+
     doc: Path
     language: str
 
 
 class doc_mentions_source_file(PrologFact, BaseModel):
+    """A source file mentioned in the documentation."""
+
     doc: Path
     language: str
     source_file: Path
 
 
 class doc_mentions_command(PrologFact, BaseModel):
+    """A command found in the documentation."""
+
     doc: Path
     command: str
 
 
-class cli_help_available(PrologFact, BaseModel):
+class doc_mentions_symbol(PrologFact, BaseModel):
+    """A symbol mentioned in the documentation."""
+
+    doc: Path
+    symbol: str
+
+
+class doc_command_for_target(PrologFact, BaseModel):
+    """A command in the documentation that runs one of the project's targets."""
+
+    doc: Path
     module: Path
+    command: str
+
+
+class cli_help_available(PrologFact, BaseModel):
+    """The entry point offers a help flag."""
+
+    entry_point: Path
 
 
 class cli_option(PrologFact, BaseModel):
-    entry_point: str
+    """An option accepted by the entry point."""
+
+    entry_point: Path
     flag: str
     value_type: type
     required: bool
 
 
 class cli_positional(PrologFact, BaseModel):
+    """A positional argument accepted by the entry point."""
+
     entry_point: str
-    name: str
-    value_type: type
+    argument: str
+    argument_type: type
+
+
+class cli_subcommand(PrologFact, BaseModel):
+    """A subcommand accepted by the entry point."""
+
+    entry_point: str
+    subcommand: str
+    description: str
 
 
 class stdlib_module(PrologFact, BaseModel):
+    """A module included in a language's standard library and should not be explicitly installed."""
+
     name: str
 
 
 class hardware_requirement(PrologFact, BaseModel):
-    module: Path
+    """The project requires specific hardware drivers."""
+
     requirement: str
