@@ -1,22 +1,16 @@
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from collections.abc import Set as AbstractSet
-from pathlib import Path
 
 from pydantic import BaseModel, Field, InstanceOf
 
 from .config import Config
 from .dependency import Dependency
-from .error import (
-    AccraBuildError,
-    AccraError,
-    AccraInstallError,
-    AccraUnsupportedError,
-)
+from .error import AccraError
+from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
 from .manifest import Manifest
 from .result import AccraResult
-from .run import EntryPoint
 
 # Orders language versions, most preferred first. The plugin defines what
 # "best" means (newest, an LTS, ...) and how versions compare.
@@ -74,76 +68,15 @@ class EnvironmentManager(ABC):
         ]
         return min(limits) if limits else None
 
-    # -- environment facts (optional) --------------------------------
-    #
-    # What a caller needs to use the built environment without knowing the
-    # language. The defaults describe an environment manager that
-    # offers none of it; a plugin overrides what its language has.
-
-    def environment_path(self) -> Path | None:
-        """Where the built environment lives, None when there is no such place."""
-        return None
-
-    def run_environment(self, base_env: Mapping[str, str]) -> dict[str, str]:
-        """The process environment that runs commands inside the built
-        environment, from `base_env` (e.g. a venv's `VIRTUAL_ENV` and `PATH`)."""
-        return dict(base_env)
-
-    def parse_dependency(self, spec: str) -> Dependency | AccraError:
-        """A dependency from a spec in the language's native syntax (e.g. a
-        requirement line); the default keeps the spec whole as the name."""
-        return Dependency(name=spec.strip(), version="")
-
-    def installed_dependencies(self) -> set[Dependency] | AccraError:
-        """What is installed in the built environment, versions included."""
-        return AccraInstallError(
-            message=f"{self.spec.name} cannot list installed dependencies"
-        )
-
-    def uninstall_dependencies(self, dependencies: Iterable[Dependency]) -> AccraResult:
-        """Removes `dependencies` from the built environment."""
-        return AccraResult(
-            errors=[
-                AccraInstallError(
-                    message=f"{self.spec.name} cannot uninstall dependencies"
-                )
-            ],
-            success=False,
-        )
-
-    def project_names(self) -> set[str]:
-        """The names under which the project refers to itself (its modules,
-        packages, crates or artifacts), never dependencies. Read-only."""
-        return set()
-
-    # -- running (optional) ------------------------------------------
-
-    def entry_points(self) -> set[EntryPoint] | AccraError:
-        """What the built project can run and how; empty when the
-        environment manager does not know."""
-        return set()
-
-    def entry_point_for(self, path: Path) -> EntryPoint | AccraError:
-        """How to run the project's source file `path` (e.g. as a script or as
-        a module), whether or not `entry_points()` lists it."""
-        return AccraUnsupportedError(message=f"{self.spec.name} cannot run {path}")
-
     # -- dependencies ------------------------------------------------
 
-    def _get_dependencies(self) -> set[Dependency] | None:
+    def _get_dependencies(self) -> set[Dependency]:
         """Collects the dependencies from all present manifests into a single set."""
 
         dependencies: set[Dependency] = set()
 
         for manifest in self.present_manifests:
-            manifest_dependencies: set[Dependency] | None = (
-                manifest.extract_dependencies()
-            )
-            if manifest_dependencies:
-                dependencies.update(manifest_dependencies)
-
-        if not dependencies:
-            return None
+            dependencies.update(manifest.extract_dependencies())
 
         return dependencies
 
@@ -151,7 +84,11 @@ class EnvironmentManager(ABC):
     def pre_dependencies_installation(self) -> AccraResult:
         """Work needed to be done before dependencies are installed.
 
-        This could include installation of the language toolchain (e.g. language compiler / interpreter, package manager) and setup of the environment (e.g. venv for Python)."""
+        This could include installation of the language toolchain
+        (e.g. language compiler / interpreter, package manager) and
+        setup of the environment (e.g. venv for Python).
+
+        """
         return AccraResult()
 
     @abstractmethod
@@ -159,15 +96,12 @@ class EnvironmentManager(ABC):
         """Installs a dependency."""
         return AccraResult()
 
-    def supported_language_versions(self) -> set[str] | AccraError:
-        """The language versions every present manifest allows, e.g.
-        so a caller can retry with another one. A manifest may return any set
-        (e.g. a `frozenset`); anything else is an error naming it."""
+    @classmethod
+    def supported_language_versions(cls, self) -> set[str] | AccraError:
+        """The language versions every present manifest agrees on."""
 
         if not self.present_manifests:
-            return AccraInstallError(
-                message="could not decide on a language version: no manifest present"
-            )
+            return project_not_initializable(error="no manifests present")
 
         supported_versions_from_manifests: list[set[str]] = []
 
@@ -182,22 +116,27 @@ class EnvironmentManager(ABC):
                     return result
 
                 case _:
-                    return AccraInstallError(
-                        message=(
-                            f"{manifest.spec.name} returned "
+                    return multilingual_plugin_error(
+                        plugin=manifest.spec.name,
+                        error=(
+                            f"returned a "
                             f"{type(result).__name__} as its supported language "
                             "versions, expected a set"
-                        )
+                        ),
                     )
 
         if not supported_versions_from_manifests:
-            return AccraInstallError(message="could not decide on a language version")
+            return multilingual_plugin_error(
+                plugin=cls.__name__, error="no language version was provided"
+            )
 
         supported_versions: set[str] = set.intersection(
             *supported_versions_from_manifests
         )
         if not supported_versions:
-            return AccraInstallError(message="could not decide on a language version")
+            return project_not_initializable(
+                error="could not decide on a language version"
+            )
 
         return supported_versions
 
@@ -239,7 +178,7 @@ class EnvironmentManager(ABC):
 
         result = AccraResult()
 
-        dependencies: set[Dependency] | None = self._get_dependencies()
+        dependencies: set[Dependency] = self._get_dependencies()
 
         if not dependencies:
             return result
@@ -248,14 +187,14 @@ class EnvironmentManager(ABC):
 
         for dependency in dependencies_sorted:
             if self.build_budget_exhausted():
-                result.errors.append(
-                    AccraBuildError(message="build time budget exhausted")
+                result.facts.add(
+                    project_not_initializable(reason="build time budget exhausted")
                 )
-                result.success = False
+                result.abort = True
                 return result
 
             result.extend(self._install_dependency(dependency))
-            if not result.success:
+            if result.abort:
                 return result
 
         return result
@@ -264,17 +203,5 @@ class EnvironmentManager(ABC):
         """Work needed to be done after all dependencies are present: installing
         or building the project itself, with the Dockerfile lines that do the
         same.
-
-        A language that cannot run from its sources (it needs a compile step)
-        returns `success=False` when that fails, which fails the build. A
-        language that can run from its sources (e.g. Python) never does: it
-        records what went wrong in `AccraResult.errors` and leaves `success`
-        True, as the project is still usable."""
+        """
         return AccraResult()
-
-
-# NOTE defined here and not in error.py to prevent circular dependency
-# with environment_manager field.
-class AccraFailedDependencyInstallError(AccraInstallError, BaseModel):
-    dependency: Dependency
-    environment_manager: InstanceOf[EnvironmentManager]

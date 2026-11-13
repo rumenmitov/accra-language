@@ -10,16 +10,12 @@ from .analyzer import AnalysisResults, AnalysisRun, Analyzer, Metrics
 from .config import Config
 from .environment_manager import EnvironmentManager
 from .error import (
-    AccraBuildError,
     AccraError,
-    AccraUnsupportedError,
 )
+from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
 from .result import AccraResult
-from .run import EntryPoint
 from .script import (
     ApiSymbol,
-    PackageDocs,
-    RunDiagnosis,
     ScriptProfile,
     ScriptReading,
 )
@@ -57,7 +53,8 @@ class Language(ABC):
         # the caller's choice, else picked by `detect()` (or `build()`)
         self.env_manager: EnvironmentManager | None = env_manager
 
-    def _select_env_manager(self) -> EnvironmentManager | AccraError:
+    @classmethod
+    def _select_env_manager(cls, self) -> EnvironmentManager | AccraError:
         """The environment manager to use: the caller's, else the first of the
         supported ones by name and version. An AccraError when there is none."""
 
@@ -75,8 +72,8 @@ class Language(ABC):
             self.env_manager = next(iter(candidates), None)
 
         if self.env_manager is None:
-            return AccraBuildError(
-                message=f"language {self.spec.name!r} has no environment manager"
+            return multilingual_plugin_error(
+                plugin=cls.__name__, message="no registered environment manager plugin"
             )
 
         return self.env_manager
@@ -122,25 +119,6 @@ class Language(ABC):
             if shutil.which(executable, path=path) is None
         )
 
-    def entry_points(self) -> set[EntryPoint] | AccraError:
-        """What the project can run and how, from the env manager.
-
-        Meaningful after `build()`."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return env_manager
-
-        return env_manager.entry_points()
-
-    def entry_point_for(self, path: Path) -> EntryPoint | AccraError:
-        """How to run the project's source file `path`, from the env manager."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return env_manager
-        return env_manager.entry_point_for(Path(path))
-
     # -- usage scripts (optional) ------------------------------
     #
     # What a caller needs to write a usage script for the project, check it and
@@ -154,13 +132,18 @@ class Language(ABC):
 
         return None
 
-    def check_script(self, path: Path) -> AccraError | None:
+    @classmethod
+    def check_script(cls, self, path: Path) -> AccraError | None:
         """Whether the script at `path` is valid in the language (e.g. parses),
         without running it: None when it is, else why not."""
 
-        return AccraUnsupportedError(message=f"{self.spec.name} cannot check scripts")
+        return multilingual_plugin_error(
+            plugin=cls.__name__, error="no support for checking scripts"
+        )
 
+    @classmethod
     def read_script(
+        cls,
         self,
         source: str,
         symbols: Iterable[ApiSymbol],
@@ -171,34 +154,9 @@ class Language(ABC):
         handed to the script (arguments copied from them are not the script's
         own)."""
 
-        return AccraUnsupportedError(message=f"{self.spec.name} cannot read scripts")
-
-    # -- reading runs and documentation (optional) -------------
-    #
-    # What a caller that works out an entry point's inputs needs to read the
-    # language's own messages and documentation. The defaults read nothing;
-    # none of them needs a build.
-
-    def diagnose_run(self, output: str) -> RunDiagnosis:
-        """What the output of a failed run of a project file says is missing;
-        nothing by default."""
-
-        return RunDiagnosis()
-
-    def standard_modules(self) -> frozenset[str]:
-        """The names of the language's standard library modules, which are
-        never dependencies to install; none by default."""
-
-        return frozenset()
-
-    def package_documentation(
-        self, name: str = "", timeout: float | None = None
-    ) -> PackageDocs | None:
-        """The project's package as the language's registry publishes it,
-        looked up by the name its manifests give, else `name`; None when there
-        is none or it cannot be read within `timeout` seconds."""
-
-        return None
+        return multilingual_plugin_error(
+            plugin=cls.__name__, error="no support for reading scripts"
+        )
 
     def analyze_project(
         self,
@@ -248,33 +206,27 @@ class Language(ABC):
         if isinstance(env_manager, AccraError):
             return AccraResult(errors=[env_manager], success=False)
 
-        steps = (
-            (
-                "pre-dependencies installation",
-                env_manager.pre_dependencies_installation,
-            ),
-            ("dependencies installation", env_manager.dependencies_installation),
-            (
-                "post-dependencies installation",
-                env_manager.post_dependencies_installation,
-            ),
-        )
+        steps = [
+            "env_manager.pre_dependencies_installation()",
+            "env_manager.dependencies_installation()",
+            "env_manager.post_dependencies_installation()",
+        ]
 
         result = AccraResult()
         env_manager.start_build_budget()
         try:
-            for name, step in steps:
+            for step in steps:
                 if env_manager.build_budget_exhausted():
-                    result.errors.append(
-                        AccraBuildError(
-                            message=f"build time budget exhausted before {name}"
+                    result.facts.add(
+                        project_not_initializable(
+                            message=f"build time budget exhausted before {step} could run"
                         )
                     )
-                    result.success = False
+                    result.abort = True
                     break
 
-                result.extend(step())
-                if not result.success:
+                result.extend(eval(step))
+                if result.abort:
                     break
         finally:
             env_manager.end_build_budget()
