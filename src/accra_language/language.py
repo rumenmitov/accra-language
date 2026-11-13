@@ -1,7 +1,7 @@
 import re
 import shutil
 from abc import ABC
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, Field, InstanceOf
@@ -10,19 +10,11 @@ from .analyzer import AnalysisResults, AnalysisRun, Analyzer, Metrics
 from .config import Config
 from .environment_manager import EnvironmentManager
 from .error import (
-    AccraBuildError,
     AccraError,
-    AccraUnsupportedError,
 )
+from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
 from .result import AccraResult
-from .run import EntryPoint
-from .script import (
-    ApiSymbol,
-    PackageDocs,
-    RunDiagnosis,
-    ScriptProfile,
-    ScriptReading,
-)
+from .script import ScriptProfile
 from .toolchain import Toolchain
 
 
@@ -75,8 +67,9 @@ class Language(ABC):
             self.env_manager = next(iter(candidates), None)
 
         if self.env_manager is None:
-            return AccraBuildError(
-                message=f"language {self.spec.name!r} has no environment manager"
+            return multilingual_plugin_error(
+                plugin=type(self).__name__,
+                error="no registered environment manager plugin",
             )
 
         return self.env_manager
@@ -104,14 +97,6 @@ class Language(ABC):
             if (path := manifest.path()) is not None
         }
 
-    def project_names(self) -> set[str]:
-        """The env manager's `project_names()`. Read-only."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return set()
-        return set(env_manager.project_names())
-
     def missing_tools(self) -> tuple[str, ...]:
         """The toolchain executables that are not on PATH."""
 
@@ -121,25 +106,6 @@ class Language(ABC):
             for executable in self.spec.toolchain.executables
             if shutil.which(executable, path=path) is None
         )
-
-    def entry_points(self) -> set[EntryPoint] | AccraError:
-        """What the project can run and how, from the env manager.
-
-        Meaningful after `build()`."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return env_manager
-
-        return env_manager.entry_points()
-
-    def entry_point_for(self, path: Path) -> EntryPoint | AccraError:
-        """How to run the project's source file `path`, from the env manager."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return env_manager
-        return env_manager.entry_point_for(Path(path))
 
     # -- usage scripts (optional) ------------------------------
     #
@@ -158,47 +124,17 @@ class Language(ABC):
         """Whether the script at `path` is valid in the language (e.g. parses),
         without running it: None when it is, else why not."""
 
-        return AccraUnsupportedError(message=f"{self.spec.name} cannot check scripts")
+        return multilingual_plugin_error(
+            plugin=type(self).__name__, error="no support for checking scripts"
+        )
 
-    def read_script(
-        self,
-        source: str,
-        symbols: Iterable[ApiSymbol],
-        inferred_inputs: Iterable[str] = (),
-    ) -> ScriptReading | AccraError:
-        """What the script `source` does with the project's public `symbols`,
-        read without running it. `inferred_inputs` are values the caller
-        handed to the script (arguments copied from them are not the script's
-        own)."""
+    def read_script(self, source: str) -> AccraError:
+        """What the script `source` does with the project's public symbols,
+        read without running it."""
 
-        return AccraUnsupportedError(message=f"{self.spec.name} cannot read scripts")
-
-    # -- reading runs and documentation (optional) -------------
-    #
-    # What a caller that works out an entry point's inputs needs to read the
-    # language's own messages and documentation. The defaults read nothing;
-    # none of them needs a build.
-
-    def diagnose_run(self, output: str) -> RunDiagnosis:
-        """What the output of a failed run of a project file says is missing;
-        nothing by default."""
-
-        return RunDiagnosis()
-
-    def standard_modules(self) -> frozenset[str]:
-        """The names of the language's standard library modules, which are
-        never dependencies to install; none by default."""
-
-        return frozenset()
-
-    def package_documentation(
-        self, name: str = "", timeout: float | None = None
-    ) -> PackageDocs | None:
-        """The project's package as the language's registry publishes it,
-        looked up by the name its manifests give, else `name`; None when there
-        is none or it cannot be read within `timeout` seconds."""
-
-        return None
+        return multilingual_plugin_error(
+            plugin=type(self).__name__, error="no support for reading scripts"
+        )
 
     def analyze_project(
         self,
@@ -246,35 +182,29 @@ class Language(ABC):
 
         env_manager: EnvironmentManager | AccraError = self._select_env_manager()
         if isinstance(env_manager, AccraError):
-            return AccraResult(errors=[env_manager], success=False)
+            return AccraResult(facts={env_manager}, abort=True)
 
-        steps = (
-            (
-                "pre-dependencies installation",
-                env_manager.pre_dependencies_installation,
-            ),
-            ("dependencies installation", env_manager.dependencies_installation),
-            (
-                "post-dependencies installation",
-                env_manager.post_dependencies_installation,
-            ),
-        )
+        steps = [
+            env_manager.pre_dependencies_installation,
+            env_manager.dependencies_installation,
+            env_manager.post_dependencies_installation,
+        ]
 
         result = AccraResult()
         env_manager.start_build_budget()
         try:
-            for name, step in steps:
+            for step in steps:
                 if env_manager.build_budget_exhausted():
-                    result.errors.append(
-                        AccraBuildError(
-                            message=f"build time budget exhausted before {name}"
+                    result.facts.add(
+                        project_not_initializable(
+                            error=f"build time budget exhausted before {step.__name__} could run"
                         )
                     )
-                    result.success = False
+                    result.abort = True
                     break
 
                 result.extend(step())
-                if not result.success:
+                if result.abort:
                     break
         finally:
             env_manager.end_build_budget()

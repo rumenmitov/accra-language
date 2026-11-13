@@ -4,11 +4,11 @@ from test_environment_manager import ConfigurableEnvironmentManager, FakeManifes
 
 from accra_language import (
     AccraError,
-    AccraUnsupportedError,
     Config,
     EnvironmentManagerSpec,
     Language,
     LanguageSpec,
+    multilingual_plugin_error,
 )
 from accra_language.language import _version_key
 
@@ -28,15 +28,13 @@ def _bare_language():
 
 
 def test_unsupported_defaults_are_unsupported_and_accra_errors():
-    language, manager = _bare_language()
+    language, _ = _bare_language()
     results = [
         language.check_script(Path("x")),
-        language.read_script("", []),
-        language.entry_point_for(Path("x")),
-        manager.entry_point_for(Path("x")),
+        language.read_script(""),
     ]
     for result in results:
-        assert isinstance(result, AccraUnsupportedError)
+        assert isinstance(result, multilingual_plugin_error)
         assert isinstance(result, AccraError)
 
 

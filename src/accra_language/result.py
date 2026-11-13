@@ -3,21 +3,24 @@ from typing import Self
 from pydantic import BaseModel, Field
 
 from .dockerfile import Dockerfile
-from .error import AccraError
+from .knowledge_extractor import PrologFact
 
 
 class AccraResult(BaseModel):
-    """Contains the dockerfile instructions, and a list of errors in
-    the order they were encountered.
+    """Contains the dockerfile instructions, and a set of facts about the
+    build process.
 
-    If the `success` field is False, an unrecoverable error was encountered such that the plugin cannot execute any further procedures.
+    If the `abort` field is True, an unrecoverable error was
+    encountered such that the plugin cannot execute any further
+    procedures.
+
     """
 
     dockerfile: Dockerfile = Field(default_factory=Dockerfile)
-    errors: list[AccraError] = Field(default_factory=list)
-    success: bool = True
+    facts: set[PrologFact] = Field(default_factory=set)
+    abort: bool = False
 
     def extend(self, other: Self):
         self.dockerfile.extend(other.dockerfile)
-        self.errors.extend(other.errors)
-        self.success &= other.success
+        self.facts.update(other.facts)
+        self.abort |= other.abort

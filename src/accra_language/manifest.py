@@ -34,11 +34,11 @@ class Manifest(ABC):
         return candidate if candidate.is_file() else None
 
     @abstractmethod
-    def extract_dependencies(self) -> set[Dependency] | None:
+    def extract_dependencies(self) -> set[Dependency]:
         """Returns all dependencies listed in the manifest."""
-        return None
+        return set()
 
     @abstractmethod
     def get_supported_language_versions(self) -> set[str] | AccraError:
         """Returns all language versions that are allowed by the manifest."""
-        return None
+        return set()

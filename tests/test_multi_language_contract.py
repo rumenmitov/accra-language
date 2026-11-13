@@ -1,12 +1,10 @@
-"""The contract parts a caller needs for any language: environment facts,
-entry points, read-only presence and the
-toolchain. All are optional for a plugin and have defaults."""
+"""The contract parts a caller needs for any language: read-only presence, the
+toolchain and analysis. All are optional for a plugin and have defaults."""
 
 from pathlib import Path
 from typing import override
 
 from accra_language import (
-    AccraAnalysisError,
     AccraError,
     AccraResult,
     AnalysisRun,
@@ -39,8 +37,8 @@ class FileManifest(Manifest):
         return (Path(self.spec.config.cwd) / self.spec.name).is_file()
 
     @override
-    def extract_dependencies(self) -> set[Dependency] | None:
-        return None
+    def extract_dependencies(self) -> set[Dependency]:
+        return set()
 
     @override
     def get_supported_language_versions(self) -> set[str] | AccraError:
@@ -78,20 +76,6 @@ def _language(config, env_managers=(), toolchain=None):
         toolchain=toolchain or Toolchain(),
     )
     return Language(spec)
-
-
-def test_environment_fact_defaults(tmp_path):
-    manager = PlainEnvironmentManager(Config(cwd=tmp_path))
-
-    assert manager.environment_path() is None
-    base = {"PATH": "/bin"}
-    run_env = manager.run_environment(base)
-    assert run_env == base and run_env is not base
-    assert manager.parse_dependency(" foo>=1 ") == Dependency(name="foo>=1", version="")
-    assert isinstance(manager.installed_dependencies(), AccraError)
-    uninstall = manager.uninstall_dependencies([Dependency(name="foo", version="")])
-    assert not uninstall.success and uninstall.errors
-    assert manager.entry_points() == set()
 
 
 def test_entry_point_and_toolchain_are_frozen_models():
@@ -158,18 +142,6 @@ def test_missing_tools_uses_the_config_path(tmp_path):
     assert language.missing_tools() == ("no-such-tool-accra",)
 
 
-def test_entry_points_come_from_the_env_manager(tmp_path):
-    config = Config(cwd=tmp_path)
-    manager = PlainEnvironmentManager(config)
-    entry = EntryPoint(name="main", kind="script", command=("toy", "main"))
-    manager.entry_points = lambda: {entry}
-    language = _language(config, [manager])
-
-    assert language.entry_points() == {entry}
-
-    assert isinstance(_language(Config(cwd=tmp_path)).entry_points(), AccraError)
-
-
 class FakeAnalyzer(Analyzer):
     """Measures each run it is given with `profiles`."""
 
@@ -198,7 +170,7 @@ def test_analyze_project_runs_the_matching_analyzers_on_the_runs(tmp_path):
         config,
         "net",
         Metrics.NETWORK,
-        profiles=AccraAnalysisError(message="net failed"),
+        profiles=AccraError(error="net failed"),
     )
     spec = LanguageSpec(
         name="toy",
@@ -238,30 +210,13 @@ def test_analyze_project_runs_the_matching_analyzers_on_the_runs(tmp_path):
     assert isinstance(no_manager.analyze_project(runs=[run])["mem"][None], AccraError)
 
 
-def test_entry_point_for_a_source_file(tmp_path):
-    # How to run one file
-    config = Config(cwd=tmp_path)
-    manager = PlainEnvironmentManager(config)
-    language = _language(config, [manager])
-    assert isinstance(language.entry_point_for(tmp_path / "main.toy"), AccraError)
-
-    entry = EntryPoint(name="main", kind="script", command=("toy", "main.toy"))
-    manager.entry_point_for = lambda path: entry
-    assert language.entry_point_for(tmp_path / "main.toy") == entry
-
-    assert isinstance(_language(config).entry_point_for(tmp_path / "x"), AccraError)
-
-
 def test_profiles_carry_exit_code_and_report():
-    from accra_language import AccraAnalysisError, AccraNoSamplesError
-
     profile = MemoryProfile(duration_ms=1, peak_memory_mb=1.0, total_memory_mb=1.0)
     assert profile.exit_code is None and profile.report is None
     failing = MemoryProfile(
         duration_ms=1, peak_memory_mb=1.0, total_memory_mb=1.0, exit_code=2, report="r"
     )
     assert failing.exit_code == 2 and failing.report == "r"
-    assert issubclass(AccraNoSamplesError, AccraAnalysisError)
 
 
 def test_dockerfile_parts_compose(tmp_path):
@@ -296,14 +251,6 @@ def test_manifest_paths(tmp_path):
     assert language.manifest_paths() == {tmp_path / "toy.toml"}
 
 
-def test_project_names_default(tmp_path):
-    config = Config(cwd=tmp_path)
-    language = _language(config, [PlainEnvironmentManager(config)])
-
-    assert language.project_names() == set()
-    assert _language(config).project_names() == set()  # no env manager
-
-
 def test_supported_versions_are_available_without_choosing(tmp_path):
     (tmp_path / "toy.toml").write_text("")
     config = Config(cwd=tmp_path)
@@ -318,15 +265,13 @@ def test_supported_versions_are_available_without_choosing(tmp_path):
 
 
 def test_usage_scripts_are_unsupported_by_default(tmp_path):
-    from accra_language import ApiSymbol, ScriptProfile, ScriptReading
+    from accra_language import ScriptProfile
 
     config = Config(cwd=tmp_path)
     language = _language(config, [PlainEnvironmentManager(config)])
     assert language.script_profile() is None
     assert isinstance(language.check_script(tmp_path / "s.toy"), AccraError)
-    assert isinstance(
-        language.read_script("x", [ApiSymbol(module="m.toy", name="f")]), AccraError
-    )
+    assert isinstance(language.read_script("x"), AccraError)
 
     profile = ScriptProfile(language="Toy", file_suffix=".toy", code_fence="toy")
     assert profile.conventions == ()
@@ -336,30 +281,6 @@ def test_usage_scripts_are_unsupported_by_default(tmp_path):
         (),
         (),
     )
-    symbol = ApiSymbol(module="m.toy", name="f")
-    assert (symbol.kind, symbol.returns_value, symbol.is_driver) == (
-        "function",
-        True,
-        False,
-    )
-    reading = ScriptReading(calls_project_api=True, demonstrated_symbols=("f",))
-    assert reading.distinct_api_symbols == 0 and reading.parse_error is None
-
-
-def test_runs_and_documentation_are_unread_by_default(tmp_path):
-    from accra_language import PackageDocs, RunDiagnosis, ScriptProfile
-
-    config = Config(cwd=tmp_path)
-    language = _language(config, [PlainEnvironmentManager(config)])
-    assert language.diagnose_run("anything at all") == RunDiagnosis()
-    assert language.standard_modules() == frozenset()
-    assert language.package_documentation("toy", timeout=1) is None
-
-    profile = ScriptProfile(language="Toy", file_suffix=".toy", code_fence="toy")
-    assert (profile.command_pattern, profile.usage_patterns) == ("", ())
-    assert profile.package_registry == ""
-    docs = PackageDocs(registry="ToyHub", package_name="toy", source_url="u")
-    assert (docs.summary, docs.description_excerpt, docs.project_urls) == ("", "", ())
 
 
 def test_static_analyzers_need_no_runs(tmp_path):
@@ -404,9 +325,7 @@ def test_static_analyzers_need_no_runs(tmp_path):
             )
         },
     )
-    broken = Static(
-        config, "zzz", Metrics.NETWORK, AccraAnalysisError(message="unreadable")
-    )
+    broken = Static(config, "zzz", Metrics.NETWORK, AccraError(error="unreadable"))
     spec = LanguageSpec(
         name="toy",
         version="1",
@@ -455,16 +374,11 @@ def test_toolchain_path_and_quoting():
     )
 
 
-def test_package_docs_hashable_and_profile_patterns():
+def test_profile_patterns_are_validated():
     import pytest
 
-    from accra_language.script import PackageDocs, ScriptProfile
+    from accra_language import ScriptProfile
 
-    docs = PackageDocs(
-        registry="PyPI", package_name="p", source_url="u", project_urls={"a": "b"}
-    )
-    assert docs.project_urls == (("a", "b"),)
-    assert hash(docs) == hash(docs.model_copy())
     with pytest.raises(ValueError, match="command_pattern"):
         ScriptProfile(
             language="X", file_suffix=".x", code_fence="x", command_pattern="("

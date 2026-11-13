@@ -6,8 +6,6 @@ import pytest
 
 from accra_language import (
     AccraError,
-    AccraFailedDependencyInstallError,
-    AccraInstallError,
     AccraResult,
     Config,
     Dependency,
@@ -19,6 +17,8 @@ from accra_language import (
     LanguageSpec,
     Manifest,
     ManifestSpec,
+    multilingual_plugin_error,
+    project_not_initializable,
 )
 from accra_language.analyzer import (
     LibraryUsage,
@@ -40,7 +40,7 @@ class FakeManifest(Manifest):
         return True
 
     @override
-    def extract_dependencies(self) -> set[Dependency] | None:
+    def extract_dependencies(self) -> set[Dependency]:
         return {
             Dependency(name="foo", version="4.5"),
             Dependency(name="bar", version="9.4"),
@@ -127,8 +127,6 @@ def test_environment_manager():
             ],
             post_dependencies_installation=['RUN echo "Build complete!"'],
         ),
-        errors=[],
-        success=True,
     )
 
     config = Config()
@@ -148,10 +146,10 @@ class VersionsManifest(FakeManifest):
     def __init__(self, config: Config, versions: set[str] | None = None, deps=None):
         super().__init__(config)
         self.versions = versions if versions is not None else {"3.5", "3.9", "3.10"}
-        self.deps = deps
+        self.deps = deps if deps is not None else set()
 
     @override
-    def extract_dependencies(self) -> set[Dependency] | None:
+    def extract_dependencies(self) -> set[Dependency]:
         return self.deps
 
     @override
@@ -211,12 +209,12 @@ def test_language_without_env_managers_returns_errors():
 
     error = language.detect()
     assert isinstance(error, AccraError)
-    assert "has no environment manager" in error.message
+    assert "no registered environment manager plugin" in error.error
 
     build = language.build()
-    assert not build.success
-    [build_error] = build.errors
-    assert "has no environment manager" in build_error.message
+    assert build.abort
+    [build_error] = build.facts
+    assert "no registered environment manager plugin" in build_error.error
 
 
 def test_the_caller_can_order_the_versions():
@@ -343,8 +341,10 @@ def test_build_budget_stops_the_build():
         )
     )
     result = language.build()
-    assert not result.success
-    assert "budget" in result.errors[0].message
+    assert result.abort
+    [fact] = result.facts
+    assert isinstance(fact, project_not_initializable)
+    assert "budget" in fact.error
     assert env_mgr.remaining_build_time() is None  # budget is cleared after build
 
 
@@ -368,55 +368,6 @@ def test_subprocess_timeout_is_capped_by_budget():
 
 def _config(tmp_path):
     return Config(cwd=tmp_path)
-
-
-def test_failed_dependency_error_names_its_environment_manager(tmp_path):
-    manager = FakeEnvironmentManager(_config(tmp_path))
-    error = AccraFailedDependencyInstallError(
-        message="x",
-        dependency=Dependency(name="a", version="1"),
-        environment_manager=manager,
-    )
-    assert error.environment_manager is manager
-    with pytest.raises(ValueError):
-        AccraFailedDependencyInstallError(
-            message="x", dependency=Dependency(name="a", version="1")
-        )
-
-
-def test_a_failed_dependency_does_not_stop_the_others(tmp_path):
-    class Failing(FakeEnvironmentManager):
-        def _get_dependencies(self):
-            return {Dependency(name=n, version="1") for n in ("bar", "baz", "foo")}
-
-        def _install_dependency(self, dependency):
-            if dependency.name == "baz":
-                return AccraResult(
-                    errors=[
-                        AccraFailedDependencyInstallError(
-                            message="no",
-                            dependency=dependency,
-                            environment_manager=self,
-                        )
-                    ]
-                )
-            return AccraResult(
-                dockerfile=Dockerfile(
-                    dependencies_installation=[
-                        DockerfileInstruction(f"RUN install {dependency.name}")
-                    ]
-                )
-            )
-
-    manager = Failing(_config(tmp_path))
-    result = manager.dependencies_installation()
-    assert result.success
-    [error] = result.errors
-    assert error.dependency.name == "baz"
-    lines = [str(i) for i in result.dockerfile.dependencies_installation]
-    assert any("bar" in line for line in lines)
-    assert any("foo" in line for line in lines)
-    assert not any("baz" in line for line in lines)
 
 
 class _VersionManifest(FakeManifest):
@@ -457,8 +408,8 @@ def test_manifest_none_or_list_is_an_error_naming_the_manifest(tmp_path):
     for outcome in (None, ["1.0"]):
         manager = _VersionManager(_config(tmp_path), outcome)
         result = manager.supported_language_versions()
-        assert isinstance(result, AccraInstallError)
-        assert "fake-manifest" in result.message
+        assert isinstance(result, multilingual_plugin_error)
+        assert result.plugin == "fake-manifest"
 
 
 def test_detect_raises_when_a_manifest_raises(tmp_path):
@@ -482,14 +433,6 @@ def _language(manager, tmp_path, cls=None):
 
 
 def test_read_only_hooks_do_not_swallow_a_raise(tmp_path):
-    class Bad(_VersionManager):
-        def project_names(self):
-            raise ValueError("x")
-
-    language = _language(Bad(_config(tmp_path), {"1.0"}), tmp_path)
-    with pytest.raises(ValueError):
-        language.project_names()
-
     class BadLanguage(Language):
         def is_present(self):
             raise ValueError("x")
