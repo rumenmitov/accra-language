@@ -213,10 +213,6 @@ class exe_file(PrologFact, BaseModel):
     path: Path
 
 
-class results_file(PrologFact, BaseModel):
-    path: Path
-
-
 class defines_function(PrologFact, BaseModel):
     """A function defined in a module."""
 
