@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Config
 from .environment_manager import EnvironmentManager
-from .error import AccraAnalysisError
+from .error import AccraError
 from .run import EntryPoint
 
 
@@ -89,7 +89,7 @@ class AnalyzerSpec(BaseModel):
 # what an analyzer returns: keyed by the entry point of each run it measured,
 # None for a measure of the whole project (e.g. a static analysis of its
 # sources)
-AnalysisResults = dict[EntryPoint | None, set[Profile] | AccraAnalysisError]
+AnalysisResults = dict[EntryPoint | None, set[Profile] | AccraError]
 
 
 class AnalysisRun(BaseModel):
@@ -135,5 +135,5 @@ class Analyzer(ABC):
         - A measure of a run is keyed by that run's entry point, one run per
           entry point; an analyzer that measures runs gives nothing when there
           are none. A run that ended before it could be measured gives an
-          `AccraNoSamplesError`."""
+          `AccraError`."""
         ...

@@ -4,4 +4,4 @@ from pydantic import BaseModel
 
 
 class AccraError(ABC, BaseModel):
-    message: str
+    error: str

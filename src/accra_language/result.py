@@ -23,4 +23,4 @@ class AccraResult(BaseModel):
     def extend(self, other: Self):
         self.dockerfile.extend(other.dockerfile)
         self.facts.update(other.facts)
-        self.abort &= other.abort
+        self.abort |= other.abort

@@ -96,8 +96,7 @@ class EnvironmentManager(ABC):
         """Installs a dependency."""
         return AccraResult()
 
-    @classmethod
-    def supported_language_versions(cls, self) -> set[str] | AccraError:
+    def supported_language_versions(self) -> set[str] | AccraError:
         """The language versions every present manifest agrees on."""
 
         if not self.present_manifests:
@@ -127,7 +126,7 @@ class EnvironmentManager(ABC):
 
         if not supported_versions_from_manifests:
             return multilingual_plugin_error(
-                plugin=cls.__name__, error="no language version was provided"
+                plugin=type(self).__name__, error="no language version was provided"
             )
 
         supported_versions: set[str] = set.intersection(
@@ -188,7 +187,7 @@ class EnvironmentManager(ABC):
         for dependency in dependencies_sorted:
             if self.build_budget_exhausted():
                 result.facts.add(
-                    project_not_initializable(reason="build time budget exhausted")
+                    project_not_initializable(error="build time budget exhausted")
                 )
                 result.abort = True
                 return result

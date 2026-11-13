@@ -1,8 +1,9 @@
 from abc import ABC
-from os import Path
+from pathlib import Path
 from typing import ClassVar, Final
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.fields import FieldInfo
 
 from .error import AccraError
 
@@ -17,17 +18,17 @@ class PrologFact(ABC, BaseModel):
 
     @staticmethod
     def _atom(val: str) -> str:
-        return val.translate(PrologFact._ESCAPED_CHARS_TABLE)
+        return f"'{val.translate(PrologFact._ESCAPED_CHARS_TABLE)}'"
 
-    @classmethod
-    def __str__(cls, self) -> str:
-        fields = vars(self)
-        fact = cls.__name__ + "("
+    def __str__(self) -> str:
+        fact_name: str = type(self).__name__
+        fields: dict[str, FieldInfo] = type(self).model_fields
 
-        for key, val in fields:
-            fact += "'" + self._atom(str(val)) + "', "
+        args: list[str] = [self._atom(str(getattr(self, field))) for field in fields]
 
-        return fact[:-1] + ")"
+        joined_args: str = ", ".join(args)
+
+        return f"{fact_name}({joined_args})"
 
 
 # TODO In the future, we can gradually add more prolog facts to

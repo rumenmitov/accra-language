@@ -1,7 +1,7 @@
 import re
 import shutil
 from abc import ABC
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, Field, InstanceOf
@@ -14,11 +14,7 @@ from .error import (
 )
 from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
 from .result import AccraResult
-from .script import (
-    ApiSymbol,
-    ScriptProfile,
-    ScriptReading,
-)
+from .script import ScriptProfile
 from .toolchain import Toolchain
 
 
@@ -53,8 +49,7 @@ class Language(ABC):
         # the caller's choice, else picked by `detect()` (or `build()`)
         self.env_manager: EnvironmentManager | None = env_manager
 
-    @classmethod
-    def _select_env_manager(cls, self) -> EnvironmentManager | AccraError:
+    def _select_env_manager(self) -> EnvironmentManager | AccraError:
         """The environment manager to use: the caller's, else the first of the
         supported ones by name and version. An AccraError when there is none."""
 
@@ -73,7 +68,8 @@ class Language(ABC):
 
         if self.env_manager is None:
             return multilingual_plugin_error(
-                plugin=cls.__name__, message="no registered environment manager plugin"
+                plugin=type(self).__name__,
+                error="no registered environment manager plugin",
             )
 
         return self.env_manager
@@ -101,14 +97,6 @@ class Language(ABC):
             if (path := manifest.path()) is not None
         }
 
-    def project_names(self) -> set[str]:
-        """The env manager's `project_names()`. Read-only."""
-
-        env_manager: EnvironmentManager | AccraError = self._select_env_manager()
-        if isinstance(env_manager, AccraError):
-            return set()
-        return set(env_manager.project_names())
-
     def missing_tools(self) -> tuple[str, ...]:
         """The toolchain executables that are not on PATH."""
 
@@ -132,30 +120,20 @@ class Language(ABC):
 
         return None
 
-    @classmethod
-    def check_script(cls, self, path: Path) -> AccraError | None:
+    def check_script(self, path: Path) -> AccraError | None:
         """Whether the script at `path` is valid in the language (e.g. parses),
         without running it: None when it is, else why not."""
 
         return multilingual_plugin_error(
-            plugin=cls.__name__, error="no support for checking scripts"
+            plugin=type(self).__name__, error="no support for checking scripts"
         )
 
-    @classmethod
-    def read_script(
-        cls,
-        self,
-        source: str,
-        symbols: Iterable[ApiSymbol],
-        inferred_inputs: Iterable[str] = (),
-    ) -> ScriptReading | AccraError:
-        """What the script `source` does with the project's public `symbols`,
-        read without running it. `inferred_inputs` are values the caller
-        handed to the script (arguments copied from them are not the script's
-        own)."""
+    def read_script(self, source: str) -> AccraError:
+        """What the script `source` does with the project's public symbols,
+        read without running it."""
 
         return multilingual_plugin_error(
-            plugin=cls.__name__, error="no support for reading scripts"
+            plugin=type(self).__name__, error="no support for reading scripts"
         )
 
     def analyze_project(
@@ -204,12 +182,12 @@ class Language(ABC):
 
         env_manager: EnvironmentManager | AccraError = self._select_env_manager()
         if isinstance(env_manager, AccraError):
-            return AccraResult(errors=[env_manager], success=False)
+            return AccraResult(facts={env_manager}, abort=True)
 
         steps = [
-            "env_manager.pre_dependencies_installation()",
-            "env_manager.dependencies_installation()",
-            "env_manager.post_dependencies_installation()",
+            env_manager.pre_dependencies_installation,
+            env_manager.dependencies_installation,
+            env_manager.post_dependencies_installation,
         ]
 
         result = AccraResult()
@@ -219,13 +197,13 @@ class Language(ABC):
                 if env_manager.build_budget_exhausted():
                     result.facts.add(
                         project_not_initializable(
-                            message=f"build time budget exhausted before {step} could run"
+                            error=f"build time budget exhausted before {step.__name__} could run"
                         )
                     )
                     result.abort = True
                     break
 
-                result.extend(eval(step))
+                result.extend(step())
                 if result.abort:
                     break
         finally:
