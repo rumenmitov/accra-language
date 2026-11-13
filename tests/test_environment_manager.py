@@ -30,6 +30,11 @@ from accra_language.analyzer import (
 )
 
 
+class _StaticLanguage(Language):
+    def extract_static_facts(self):
+        return set()
+
+
 class FakeManifest(Manifest):
     def __init__(self, config: Config):
         spec = ManifestSpec(name="fake-manifest", version="1.0.0", config=config)
@@ -132,7 +137,7 @@ def test_environment_manager():
     config = Config()
 
     env_mgr = FakeEnvironmentManager(config)
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers={env_mgr}
         )
@@ -188,7 +193,7 @@ def test_no_manifests_returns_error_instead_of_raising():
     env_mgr = ConfigurableEnvironmentManager(Config())
     assert isinstance(env_mgr.select_language_version(), AccraError)
 
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=Config(), supported_env_managers={env_mgr}
         )
@@ -204,7 +209,7 @@ def test_caller_chosen_language_version():
 
 def test_language_without_env_managers_returns_errors():
     # constructing never raises; detect() and build() return the error
-    language = Language(LanguageSpec(name="py", version="", config=Config()))
+    language = _StaticLanguage(LanguageSpec(name="py", version="", config=Config()))
     assert language.env_manager is None
 
     error = language.detect()
@@ -251,7 +256,7 @@ def test_env_manager_choice_is_deterministic():
         ConfigurableEnvironmentManager(config, name=name)
         for name in ("zeta", "alpha", "mid")
     }
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers=managers
         )
@@ -261,7 +266,7 @@ def test_env_manager_choice_is_deterministic():
     assert language.env_manager.spec.name == "alpha"
 
     # build() picks the same one when detect() was not called
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers=managers
         )
@@ -275,7 +280,7 @@ def test_caller_chosen_env_manager_is_kept():
     alpha, zeta = (
         ConfigurableEnvironmentManager(config, name=name) for name in ("alpha", "zeta")
     )
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers={alpha, zeta}
         ),
@@ -296,7 +301,7 @@ def test_a_plugin_exception_is_not_swallowed():
         raise ValueError("bug in the plugin")
 
     env_mgr.behaviour = raising
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers={env_mgr}
         )
@@ -335,7 +340,7 @@ def test_build_budget_stops_the_build():
     config = Config(build_timeout=0.01)
     env_mgr = ConfigurableEnvironmentManager(config, [VersionsManifest(config)])
     env_mgr.pre_dependencies_installation = lambda: time.sleep(0.05) or AccraResult()
-    language = Language(
+    language = _StaticLanguage(
         LanguageSpec(
             name="", version="", config=config, supported_env_managers={env_mgr}
         )
@@ -421,7 +426,8 @@ def test_detect_raises_when_a_manifest_raises(tmp_path):
 
 def _language(manager, tmp_path, cls=None):
     class Lang(cls or Language):
-        pass
+        def extract_static_facts(self):
+            return set()
 
     spec = LanguageSpec(
         name="fake",

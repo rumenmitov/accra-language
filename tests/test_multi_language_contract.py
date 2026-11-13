@@ -26,6 +26,11 @@ from accra_language import (
 )
 
 
+class _StaticLanguage(Language):
+    def extract_static_facts(self):
+        return set()
+
+
 class FileManifest(Manifest):
     """Present when its file exists in `cwd`."""
 
@@ -75,7 +80,7 @@ def _language(config, env_managers=(), toolchain=None):
         supported_env_managers=set(env_managers),
         toolchain=toolchain or Toolchain(),
     )
-    return Language(spec)
+    return _StaticLanguage(spec)
 
 
 def test_entry_point_and_toolchain_are_frozen_models():
@@ -179,7 +184,7 @@ def test_analyze_project_runs_the_matching_analyzers_on_the_runs(tmp_path):
         supported_env_managers={PlainEnvironmentManager(config)},
         analyzers={memory, broken},
     )
-    language = Language(spec)
+    language = _StaticLanguage(spec)
     entry = EntryPoint(name="main", kind="script", command=("toy", "main"))
     run = AnalysisRun(
         entry_point=entry,
@@ -204,7 +209,7 @@ def test_analyze_project_runs_the_matching_analyzers_on_the_runs(tmp_path):
     assert list(only_memory) == ["mem"]
 
     # no env manager: the error stands for the whole project
-    no_manager = Language(
+    no_manager = _StaticLanguage(
         LanguageSpec(name="toy", version="1", config=config, analyzers={memory})
     )
     assert isinstance(no_manager.analyze_project(runs=[run])["mem"][None], AccraError)
@@ -333,7 +338,7 @@ def test_static_analyzers_need_no_runs(tmp_path):
         supported_env_managers={PlainEnvironmentManager(config)},
         analyzers={network, threads, broken},
     )
-    language = Language(spec)
+    language = _StaticLanguage(spec)
 
     results = language.analyze_project()
     assert list(results) == ["net", "par", "zzz"]
@@ -343,12 +348,14 @@ def test_static_analyzers_need_no_runs(tmp_path):
     assert isinstance(results["zzz"][None], AccraError)
     assert list(language.analyze_project({Metrics.PARALLELISM})) == ["par"]
 
-    no_manager = Language(
+    no_manager = _StaticLanguage(
         LanguageSpec(name="toy", version="1", config=config, analyzers={network})
     )
     assert isinstance(no_manager.analyze_project()["net"][None], AccraError)
     assert (
-        Language(LanguageSpec(name="toy", version="1", config=config)).analyze_project()
+        _StaticLanguage(
+            LanguageSpec(name="toy", version="1", config=config)
+        ).analyze_project()
         == {}
     )
 

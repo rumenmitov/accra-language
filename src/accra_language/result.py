@@ -3,7 +3,7 @@ from typing import Self
 from pydantic import BaseModel, Field
 
 from .dockerfile import Dockerfile
-from .knowledge_extractor import PrologFact
+from .prolog_fact import PrologFact
 
 
 class AccraResult(BaseModel):
