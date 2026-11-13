@@ -10,11 +10,11 @@ from accra_language import (
     AccraError,
     AccraResult,
     blocking_dependency,
-    execution_failure,
-    execution_success,
+    execution_failure_other,
+    exported_symbol,
     multilingual_plugin_error,
     project_not_initializable,
-    public_symbol,
+    public_module,
 )
 from accra_language.knowledge_extractor import PrologFact
 
@@ -24,7 +24,7 @@ def test_error_facts_are_accra_errors():
         multilingual_plugin_error(plugin="p", error="m"),
         project_not_initializable(error="m"),
         blocking_dependency(dependency="d", version="1", error="m"),
-        execution_failure(module=Path("m.py"), error="m"),
+        execution_failure_other(module=Path("m.py"), error="m"),
     ):
         assert isinstance(fact, AccraError)
         assert isinstance(fact, PrologFact)
@@ -32,7 +32,7 @@ def test_error_facts_are_accra_errors():
 
 
 def test_knowledge_facts_are_not_errors():
-    fact = execution_success(module=Path("m.py"))
+    fact = public_module(module=Path("m.py"))
     assert isinstance(fact, PrologFact)
     assert not isinstance(fact, AccraError)
 
@@ -44,11 +44,11 @@ def test_facts_render_as_prolog_atoms():
     assert str(blocking_dependency(dependency="d", version="1", error="m")) == (
         "blocking_dependency('m', 'd', '1')"
     )
-    assert str(execution_failure(module=Path("a/b.py"), error="m")) == (
-        "execution_failure('m', 'a/b.py')"
+    assert str(execution_failure_other(module=Path("a/b.py"), error="m")) == (
+        "execution_failure_other('m', 'a/b.py')"
     )
-    assert str(public_symbol(module=Path("a.py"), symbol="f", symbol_kind="fn")) == (
-        "public_symbol('a.py', 'f', 'fn')"
+    assert str(exported_symbol(module=Path("a.py"), symbol="f", symbol_kind="fn")) == (
+        "exported_symbol('a.py', 'f', 'fn')"
     )
 
 
@@ -70,11 +70,11 @@ def test_facts_are_hashable_and_compared_by_value():
     assert same == {project_not_initializable(error="m")}
     assert different not in same
     assert {
-        execution_success(module=Path("a.py")),
-        execution_success(module=Path("b.py")),
+        public_module(module=Path("a.py")),
+        public_module(module=Path("b.py")),
     } == {
-        execution_success(module=Path("a.py")),
-        execution_success(module=Path("b.py")),
+        public_module(module=Path("a.py")),
+        public_module(module=Path("b.py")),
     }
 
 

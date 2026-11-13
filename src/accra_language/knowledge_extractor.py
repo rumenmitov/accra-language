@@ -45,7 +45,7 @@ class multilingual_plugin_error(PrologFact, AccraError, BaseModel):
     `blocking_dependency`.
 
     For errors occuring during execution of
-    the project use `execution_failure`.
+    the project use the `execution_failure_*` facts.
 
     """
 
