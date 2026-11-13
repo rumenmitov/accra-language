@@ -4,6 +4,7 @@ and how `AccraResult` collects them."""
 from pathlib import Path
 
 import pytest
+from accra_language.knowledge_extractor import PrologFact
 from pydantic import ValidationError
 
 from accra_language import (
@@ -16,7 +17,6 @@ from accra_language import (
     project_not_initializable,
     public_module,
 )
-from accra_language.knowledge_extractor import PrologFact
 
 
 def test_error_facts_are_accra_errors():

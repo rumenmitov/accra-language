@@ -1,6 +1,6 @@
 import re
 import shutil
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -12,7 +12,11 @@ from .environment_manager import EnvironmentManager
 from .error import (
     AccraError,
 )
-from .knowledge_extractor import multilingual_plugin_error, project_not_initializable
+from .knowledge_extractor import (
+    PrologFact,
+    multilingual_plugin_error,
+    project_not_initializable,
+)
 from .result import AccraResult
 from .script import ScriptProfile
 from .toolchain import Toolchain
@@ -135,6 +139,10 @@ class Language(ABC):
         return multilingual_plugin_error(
             plugin=type(self).__name__, error="no support for reading scripts"
         )
+
+    @abstractmethod
+    def extract_static_facts(self) -> set[PrologFact]:
+        """Extracts facts from the files in the project (source code, documentation, etc.)."""
 
     def analyze_project(
         self,
