@@ -64,35 +64,56 @@ class blocking_dependency(PrologFact, AccraError, BaseModel):
 
 
 class execution_failure_missing_file(PrologFact, AccraError, BaseModel):
-    """Module failed to run due to a missing file."""
+    """Module failed to run due to a missing file.
+
+    Note, the missing file information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
 
     module: Path
-    missing_file: Path
 
 
 class execution_failure_missing_module(PrologFact, AccraError, BaseModel):
-    """Module failed to run due to a missing module."""
+    """Module failed to run due to a missing module.
+
+    Note, the missing module information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
 
     module: Path
-    missing_module: Path
 
 
 class execution_failure_missing_argument(PrologFact, AccraError, BaseModel):
-    """Module failed to run due to a missing argument."""
+    """Module failed to run due to a missing argument.
+
+    Note, the missing argument information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
 
     module: Path
-    missing_argument: str
 
 
 class execution_failure_timeout(PrologFact, AccraError, BaseModel):
-    """Module failed to terminate in the configured time."""
+    """Module failed to terminate in the configured time.
+
+    Note, the timeout information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
 
     module: Path
-    timeout: float | None
 
 
 class execution_failure_other(PrologFact, AccraError, BaseModel):
-    """Module failed to run successfully for some other reason."""
+    """Module failed to run successfully for some other reason.
+
+    Note, the failure reason is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
 
     module: Path
 
