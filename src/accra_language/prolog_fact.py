@@ -35,7 +35,7 @@ class PrologFact(ABC, BaseModel):
 # distinguish different errors. Not a prioroty though!
 class multilingual_plugin_error(PrologFact, AccraError, BaseModel):
     """Any error caused by erroneous / misconfigured ACCRa plugins
-    (e.g. timeout values are too short).
+    (e.g. a procedure that has not been implemented).
 
     For errors stemming from the structure of the project itself use
     `project_not_initializable`.
@@ -43,6 +43,9 @@ class multilingual_plugin_error(PrologFact, AccraError, BaseModel):
     For errors pertaining to critical
     broken / missing dependencies of the project, use
     `blocking_dependency`.
+
+    For errors occuring during compilation of
+    the project use the `build_failure_*` facts.
 
     For errors occuring during execution of
     the project use the `execution_failure_*` facts.
@@ -61,6 +64,50 @@ class blocking_dependency(PrologFact, AccraError, BaseModel):
 
     dependency: str
     version: str
+
+
+class build_failure_missing_file(PrologFact, AccraError, BaseModel):
+    """Module failed to compile due to a missing file.
+
+    Note, the missing file information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
+
+    module: Path
+
+
+class build_failure_missing_module(PrologFact, AccraError, BaseModel):
+    """Module failed to compile due to a missing module.
+
+    Note, the missing module information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
+
+    module: Path
+
+
+class build_failure_missing_argument(PrologFact, AccraError, BaseModel):
+    """Module failed to compile due to a missing argument.
+
+    Note, the missing argument information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
+
+    module: Path
+
+
+class build_failure_timeout(PrologFact, AccraError, BaseModel):
+    """Module failed to terminate compilation in the configured time.
+
+    Note, the timeout information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
+
+    module: Path
 
 
 class execution_failure_missing_file(PrologFact, AccraError, BaseModel):
