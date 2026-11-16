@@ -28,9 +28,13 @@ pydantic models, each rendering to a Prolog atom with `str()` (e.g.
 Facts that report errors are also `AccraError`s.
 
 - `AccraError`: the base of every error fact, with one field, `error` (what went wrong). It is abstract: errors are always one of the facts below.
-- `multilingual_plugin_error(plugin, error)`: any error caused by an erroneous or misconfigured plugin (e.g. timeout values are too short).
+- `multilingual_plugin_error(plugin, error)`: any error caused by an erroneous or misconfigured plugin (e.g. a procedure that has not been implemented).
 - `project_not_initializable(error)`: something is wrong with the project itself, so it cannot be initialized or run (no manifests, no agreed language version, the build time budget ran out).
 - `blocking_dependency(dependency, version)`: a critical dependency is broken or missing.
+- `build_failure_missing_file(module, missing_file)`: a module failed to compile for lack of a file.
+- `build_failure_missing_module(module, missing_module)`: a module failed to compile for lack of another module.
+- `build_failure_missing_argument(module, missing_argument)`: a module failed to compile for lack of an argument.
+- `build_failure_timeout(module)`: a module did not terminate compilation within the configured time.
 - `execution_failure_missing_file(module, missing_file)`: a module failed to run for lack of a file.
 - `execution_failure_missing_module(module, missing_module)`: a module failed to run for lack of another module.
 - `execution_failure_missing_argument(module, missing_argument)`: a module failed to run for lack of an argument.
