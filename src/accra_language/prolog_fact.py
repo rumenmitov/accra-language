@@ -59,13 +59,6 @@ class project_not_initializable(PrologFact, AccraError, BaseModel):
     """An error that results in a project that cannot be ran."""
 
 
-class blocking_dependency(PrologFact, AccraError, BaseModel):
-    """A dependency that is not present and could not be installed or ran."""
-
-    dependency: str
-    version: str
-
-
 class build_failure_missing_file(PrologFact, AccraError, BaseModel):
     """Module failed to compile due to a missing file.
 
@@ -103,6 +96,17 @@ class build_failure_timeout(PrologFact, AccraError, BaseModel):
     """Module failed to terminate compilation in the configured time.
 
     Note, the timeout information is stored in the `error` field
+    which is inherited from AccraError.
+
+    """
+
+    module: Path
+
+
+class build_failure_other(PrologFact, AccraError, BaseModel):
+    """Module failed to compile successfully for some other reason.
+
+    Note, the failure reason is stored in the `error` field
     which is inherited from AccraError.
 
     """
@@ -163,6 +167,13 @@ class execution_failure_other(PrologFact, AccraError, BaseModel):
     """
 
     module: Path
+
+
+class blocking_dependency(PrologFact, AccraError, BaseModel):
+    """A dependency that is not present and could not be installed or ran."""
+
+    dependency: str
+    version: str
 
 
 class known_blocked_dependency(PrologFact, BaseModel):

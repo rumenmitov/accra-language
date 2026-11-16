@@ -35,6 +35,7 @@ Facts that report errors are also `AccraError`s.
 - `build_failure_missing_module(module, missing_module)`: a module failed to compile for lack of another module.
 - `build_failure_missing_argument(module, missing_argument)`: a module failed to compile for lack of an argument.
 - `build_failure_timeout(module)`: a module did not terminate compilation within the configured time.
+- `build_failure_other(module)`: a module failed to compile for any other reason.
 - `execution_failure_missing_file(module, missing_file)`: a module failed to run for lack of a file.
 - `execution_failure_missing_module(module, missing_module)`: a module failed to run for lack of another module.
 - `execution_failure_missing_argument(module, missing_argument)`: a module failed to run for lack of an argument.
