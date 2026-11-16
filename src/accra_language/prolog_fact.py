@@ -88,7 +88,7 @@ class execution_failure_timeout(PrologFact, AccraError, BaseModel):
     """Module failed to terminate in the configured time."""
 
     module: Path
-    missing_argument: str
+    timeout: float | None
 
 
 class execution_failure_other(PrologFact, AccraError, BaseModel):
