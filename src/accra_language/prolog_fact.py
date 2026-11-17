@@ -1,6 +1,7 @@
 from abc import ABC
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import ClassVar, Final
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.fields import FieldInfo
@@ -9,8 +10,10 @@ from .error import AccraError
 
 
 class PrologFact(ABC, BaseModel):
-    _ESCAPED_CHARS: ClassVar[Final[str]] = ["'"]
-    _ESCAPED_CHARS_TABLE: ClassVar[Final[dict[int, str]]] = str.maketrans(
+    # TODO once ACCRa moves to Python 3.13+, change the type
+    # annotations to ClassVar[Final[...]]
+    _ESCAPED_CHARS: ClassVar[Sequence[str]] = ("'",)
+    _ESCAPED_CHARS_TABLE: ClassVar[Mapping[int, str]] = str.maketrans(
         {char: "\\" + char for char in _ESCAPED_CHARS}
     )
 
