@@ -313,6 +313,7 @@ class readme_has_code_block(PrologFact, BaseModel):
     """A code block found in the README."""
 
     language: str
+    code_block: str
 
 
 class readme_mentions_source_file(PrologFact, BaseModel):
@@ -339,6 +340,7 @@ class doc_has_code_block(PrologFact, BaseModel):
 
     doc: Path
     language: str
+    code_block: str
 
 
 class doc_mentions_source_file(PrologFact, BaseModel):
